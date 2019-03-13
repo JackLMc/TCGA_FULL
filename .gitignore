@@ -1,0 +1,39 @@
+## R stuff
+.Rproj.user
+.Rhistory
+*.RData
+.Ruserdata
+.DS_Store
+*.Rproj
+.spyproject
+.Rapp.history
+
+## Folders
+Data/
+Output/
+Figures/
+Genesets/
+Antibodies/
+Paper/
+Manuscript/
+Old_attempts/
+Documents/
+Copies/
+Vectra_representative/
+
+## Genome Stuff
+hgenome.00.b.array
+hgenome.00.b.tab
+hgenome.files
+hgenome.log
+hgenome.reads
+
+## File Types
+*.png
+*.docx
+*.csv
+*.pptx
+*.pdf
+*.Rmd
+*.md
+*.xlsx
