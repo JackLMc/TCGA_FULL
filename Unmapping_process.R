@@ -1,5 +1,14 @@
 library(UsefulFunctions)
 library(tidyverse)
+library(ggpubr)
+
+my_comparisons <- list(c("MSS-hiCIRC", "MSI-H"),
+                       c("MSS-hiCIRC", "MSS"),
+                       c("MSI-H", "MSS"))
+cbcols <- c("MSS-hiCIRC" = "#999999",
+            "MSI-H" = "#56B4E9",
+            "MSS" = "#009E73",
+            "MSI-L" = "#E69F00")
 
 
 stats <- read.delim("./Data/statistics_unmapped.txt")
@@ -21,10 +30,23 @@ stats$file_name <- stats$SAMPLES
 
 merged_data <- merge(stats[,c("file_name", "unmapped")], TCGA_pats, by = "file_name")
 
+merged_data_clean <- merged_data[ c("Patient.ID", "unmapped", "Subtype")]
+head(merged_data_clean)
 
+merged_data_clean$Patient.ID <- as.factor(merged_data_clean$Patient.ID)
+DF1 <- data.frame(stringsAsFactors = F)
+c <- 1
+for(i in levels(merged_data_clean$Patient.ID)){
+  work <- droplevels(subset(merged_data_clean, Patient.ID == i))
+  total <- sum(work$unmapped)
+  DF1[c, "Patient.ID"] <- i
+  DF1[c, "unmapped"] <- total
+  DF1[c, "Subtype"] <- as.character(levels(work$Subtype))
+  c <- c + 1
+}
 
-merged_data$logged <- log10(merged_data$unmapped)
-ggplot(merged_data, aes(x = Subtype, y = logged)) +
+DF1$logged <- log10(DF1$unmapped)
+ggplot(DF1, aes(x = Subtype, y = logged)) +
   geom_boxplot(alpha = 0.5, width = 0.2) + 
   geom_violin(aes(Subtype, fill = Subtype),
               scale = "width", alpha = 0.8) +
@@ -37,4 +59,5 @@ ggplot(merged_data, aes(x = Subtype, y = logged)) +
   stat_compare_means(comparisons = my_comparisons,
                      label = "p.signif", method = "wilcox.test")
 
-range(merged_data$unmapped)
+range(DF1$unmapped)
+droplevels(subset(DF1, Subtype == "MSS-hiCIRC"))
