@@ -60,4 +60,9 @@ ggplot(DF1, aes(x = Subtype, y = logged)) +
                      label = "p.signif", method = "wilcox.test")
 
 range(DF1$unmapped)
-droplevels(subset(DF1, Subtype == "MSS-hiCIRC"))
+range(droplevels(subset(DF1, Subtype == "MSS-hiCIRC"))$unmapped)
+range(droplevels(subset(DF1, Subtype == "MSS"))$unmapped)
+range(droplevels(subset(DF1, Subtype == "MSI-H"))$unmapped)
+
+
+
