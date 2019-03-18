@@ -10,7 +10,6 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
             "MSS" = "#009E73",
             "MSI-L" = "#E69F00")
 
-
 # Looking for the files
 thousand.folders <- list.dirs(path = "./Data/Counts", full.names = T)
 filelist1 <- sapply(thousand.folders[-1], function(x){
@@ -30,9 +29,9 @@ for (i in names(lists)){
 names(lists) <- gsub("./Data/Counts/", "", names(lists))
 
 
-# Patients I have CIRC scores for.
-pat_sub <- read.csv("./Data/patient_subtypes.csv")
-converter <- read.delim("./Data/Sample_Map.tsv")
+# Patients I have CIRC scores and microsatellite status for.
+pat_sub <- read.csv("./Data/Important/patient_subtypes.csv")
+converter <- read.delim("./Data/Important/gdc_sample_sheet.2019-03-15.tsv")
 converter$Patient.ID <- gsub("-", ".", converter$Case.ID)
 converter1 <- converter[converter$Patient.ID %in% pat_sub$Patient.ID, ]
 converter1$File.Name <- gsub(".htseq.counts.gz", "", converter1$File.Name)
@@ -73,11 +72,11 @@ temp_df1 <- merge(converter2[, c("Patient.ID", "File.ID")], temp_df, by = "File.
 library(reshape2)
 Counts <- dcast(temp_df1, Gene ~ Patient.ID, sum, value.var = "Count")
 # droplevels(subset(temp_df1, Patient.ID == "TCGA.A6.2672" & Gene == "ENSG00000000003.13")) # Matches the figure in "Try"
-
-
 Counts_cleaned <- droplevels(Counts[!'%in%'(Counts$Gene, 
                                             c("__alignment_not_unique", "__no_feature",
                                               "__not_aligned", "__too_low_aQual", "__ambiguous")), ])
+## Should these be used to talk about library sizes?
+save.image(file = "Counts.RData")
 
 
 ##### START EDGER
@@ -88,7 +87,8 @@ Counts_cleaned <- Counts_cleaned %>% column_to_rownames(., var = "Gene")
 x <- DGEList(Counts_cleaned)
 
 # Get groups
-temp <- x$samples %>% rownames_to_column(., "Patient.ID")
+temp <- x$samples %>% 
+  rownames_to_column(., "Patient.ID")
 colnames(pat_sub)[colnames(pat_sub) == "Subtype"] <- "group"
 x$samples <- merge(temp[, c("Patient.ID", "lib.size", "norm.factors")], pat_sub[, c("Patient.ID", "group")], by = "Patient.ID") %>% column_to_rownames(., var = "Patient.ID")
 group <- x$samples$group
@@ -128,28 +128,16 @@ x <- estimateTagwiseDisp(x)
 
 ### Double check...
 lcpm <- cpm(x, log = T)
-
-## Online launch of this.
-# biocLite("Glimma", dependencies = T)
-# library(Glimma)
-# glMDSPlot(lcpm, labels = paste(colnames(x), sep = "_"),
-#           groups = x$samples[,c(2)], launch = T, top = 13564)
-# col.cell <- c("#999999","#56B4E9","#E69F00","#009E73","#CC79A7")[x$samples$group]
-# data.frame(x$samples$group, col.cell)
-# pdf("../Figures/Proof/PCA_of_all_genes.pdf")
-cbols
 col.cell <- c("#999999","#56B4E9","#E69F00")[x$samples$group]
-dim(lcpm)
-plotMDS(lcpm, pch = 16, cex = 2, col = col.cell)
+plotMDS(cpm, pch = 16, cex = 2, col = cbcols)
 legend("top",
        fill = c("#999999", "#56B4E9",
                 "#E69F00"),
        legend = levels(x$samples$group))
+## Doesn't really separate them based on top 500 varying genes...
 
-
+# Look at variable genes
 var_genes <- apply(lcpm, 1, var)
-
-
 select_var <- names(sort(var_genes, decreasing = T))[1:150]
 
 # Subset logcounts matrix
@@ -165,15 +153,18 @@ morecols <- colorRampPalette(mypalette)
 mycol <- colorpanel(1000,"blue","white","red")
 
 ## Get the SYMBOLS instead of ENTREZ ID
-this <- rownames_to_column(as.data.frame(highly_variable_lcpm), var = "ENSEMBL")
+HvL <- rownames_to_column(as.data.frame(highly_variable_lcpm), var = "ENSEMBL")
 
-this1 <- merge(this,x$genes, by = "ENSEMBL")
-highly_variable_lcpm_sym <- within(this1, rm(TXCHROM, ENSEMBL))
+HvL1 <- merge(HvL, x$genes, by = "ENSEMBL")
+highly_variable_lcpm_sym <- within(HvL1, rm(TXCHROM, ENSEMBL))
 distCor <- function(x) as.dist(1-cor(t(x)))
 hclustAvg <- function(x) hclust(x, method = "average")
 col.cell1 <- c("#999999","#56B4E9","#E69F00")[x$samples$group]
 
-# heatmap.2(as.matrix(highly_variable_lcpm_sym[, names(highly_variable_lcpm_sym) != "SYMBOL"]),
+# HvL2 <- highly_variable_lcpm_sym[, names(highly_variable_lcpm_sym) != "SYMBOL"] %>%
+#   column_to_rownames(., "ENTREZID")
+# 
+# heatmap.2(as.matrix(HvL2),
 #           col = mycol,
 #           trace = "none",
 #           density.info = "none",
@@ -186,14 +177,14 @@ col.cell1 <- c("#999999","#56B4E9","#E69F00")[x$samples$group]
 #           labRow = highly_variable_lcpm_sym$SYMBOL,
 #           hclustfun = hclustAvg,
 #           ColSideColors = col.cell1)
+# 
+
+
 
 # Differential gene expression
 group <- gsub("-", "_", group)
 x$samples$group <- gsub("-", "_", x$samples$group)
 design <- model.matrix(~0 + group)
-
-
-
 colnames(design) <- gsub("group", "", colnames(design))
 
 contr.matrix <- makeContrasts(
@@ -208,38 +199,37 @@ library(limma)
 # pdf("../Figures/Proof/Mean-variance-tred.pdf")
 # par(mfrow = c(1,2))
 v <- voom(x, design, plot = F)
-# save.image(file = "half.RData")
-# load("Bulk/Counts/half.RData")
 
 vfit <- lmFit(v, design)
 vfit <- contrasts.fit(vfit, contrasts = contr.matrix)
 efit <- eBayes(vfit, robust = T)
 # plotSA(efit, main = "Final model: Mean−variance trend")
-# dev.off()
 
 ## Number of differentially expressed genes
 summary(decideTests(efit))
 
 ### More stringently selected DE genes
-tfit <- treat(vfit, lfc = 1)
-summary(decideTests(tfit))
+# tfit <- treat(vfit, lfc = 0.2)
+# summary(decideTests(tfit))
 
 dt <- decideTests(efit)
 # summary(dt)
-
 # de.common <- which(dt[,2]!=0 & dt[,3]!=0)
 # length(de.common)
 
 
-MSS_hiCIRC <- which(dt[, "MSS_hiCIRCvsMSS"] != 0)
-Ensem_MSS <- efit$genes$SYMBOL[MSS_hiCIRC]
+# Finding the genes
+## MSS-hiCIRC versus MSS
+# MSS_hiCIRC_MSS <- which(dt[, "MSS_hiCIRCvsMSS"] != 0)
+# ENSEMBL_MSSs <- efit$genes$SYMBOL[MSS_hiCIRC_MSS]
 
-
-MSS_hiCIRC_ <- which(dt[, "MSI_HvsMSS_hiCIRC"] != 0)
-Ensem_MSI <- efit$genes$ENSEMBL[MSS_hiCIRC_]
-Symbol_MSI <- efit$genes$SYMBOL[MSS_hiCIRC_]
-Symbol_MSI[grepl("ROR", Symbol_MSI)]
-
+MSS_hiCIRC_MSI <- which(dt[, "MSI_HvsMSS_hiCIRC"] != 0)
+ENSEMBL_MSI_hiCIRC <- efit$genes$ENSEMBL[MSS_hiCIRC_MSI]
+Symbol_MSI_hiCIRC <- efit$genes$SYMBOL[MSS_hiCIRC_MSI]
+Symbol_MSI_hiCIRC[grepl("ROR", Symbol_MSI_hiCIRC)]
+Symbol_MSI_hiCIRC[grepl("IL17", Symbol_MSI_hiCIRC)]
+Symbol_MSI_hiCIRC[grepl("CCL", Symbol_MSI_hiCIRC)]
+# Symbol_MSI_hiCIRC[grepl("CCR", Symbol_MSI_hiCIRC)]
 
 # i <- which(v$genes$ENSEMBL %in% Symbol_MSI)
 # mycol <- colorpanel(1000,"blue","white","red")
@@ -251,15 +241,17 @@ Symbol_MSI[grepl("ROR", Symbol_MSI)]
 #           hclustfun = hclustAvg)
 # dev.off()
 
+# Looking at the data
 MSI_H.vs.MSS_hiCIRC <- topTreat(efit, coef = 1, n = Inf)
 MSI_H.vs.MSS <- topTreat(efit, coef = 2, n = Inf)
 MSS_hiCIRC.vs.MSS <- topTreat(efit, coef = 3, n = Inf)
 
-
+# Volcano plots...
 myData <- as.data.frame(MSI_H.vs.MSS_hiCIRC)
 myData$padjThresh <- as.factor(myData$adj.P.Val < 0.05)
+
 myData$Labels <- myData$SYMBOL
-labelled_genes <- c("RORC", "TLR4")
+labelled_genes <- c("RORC")
 myData$Labels[!myData$SYMBOL %in% labelled_genes] <- ""
 library(ggrepel)
 
@@ -278,8 +270,47 @@ ggplot(data = myData, aes(x = logFC, y = -log10(P.Value))) +
   labs(x = expression(Log[2]*" fold change"), y = expression(-Log[10]*" p-value"))
 dev.off()
 
+MSI_H.vs.MSS[grepl("RORC", MSI_H.vs.MSS$SYMBOL), ]
+MSI_H.vs.MSS_hiCIRC[grepl("RORC", MSI_H.vs.MSS_hiCIRC$SYMBOL), ]
+MSS_hiCIRC.vs.MSS[grepl("RORC", MSS_hiCIRC.vs.MSS$SYMBOL), ]
+
+MSI_H.vs.MSS[grepl("IL17A", MSI_H.vs.MSS$SYMBOL), ]
+MSI_H.vs.MSS_hiCIRC[grepl("IL17A", MSI_H.vs.MSS_hiCIRC$SYMBOL), ]
+MSS_hiCIRC.vs.MSS[grepl("IL17A", MSS_hiCIRC.vs.MSS$SYMBOL), ]
+
+MSI_H.vs.MSS[grepl("IL23R", MSI_H.vs.MSS$SYMBOL), ]
+MSI_H.vs.MSS_hiCIRC[grepl("IL23R", MSI_H.vs.MSS_hiCIRC$SYMBOL), ]
+MSS_hiCIRC.vs.MSS[grepl("IL23R", MSS_hiCIRC.vs.MSS$SYMBOL), ]
+
+MSI_H.vs.MSS[grepl("CCL20", MSI_H.vs.MSS$SYMBOL), ]
+MSI_H.vs.MSS_hiCIRC[grepl("CCL20", MSI_H.vs.MSS_hiCIRC$SYMBOL), ]
+MSS_hiCIRC.vs.MSS[grepl("CCL20", MSS_hiCIRC.vs.MSS$SYMBOL), ]
+
+MSI_H.vs.MSS[grepl("CCR6", MSI_H.vs.MSS$SYMBOL), ]
+MSI_H.vs.MSS_hiCIRC[grepl("CCR6", MSI_H.vs.MSS_hiCIRC$SYMBOL), ]
+MSS_hiCIRC.vs.MSS[grepl("CCR6", MSS_hiCIRC.vs.MSS$SYMBOL), ]
 
 
+MSI_H.vs.MSS[grepl("CIITA", MSI_H.vs.MSS$SYMBOL), ]
+MSI_H.vs.MSS_hiCIRC[grepl("CIITA", MSI_H.vs.MSS_hiCIRC$SYMBOL), ]
+MSS_hiCIRC.vs.MSS[grepl("CIITA", MSS_hiCIRC.vs.MSS$SYMBOL), ]
+
+MSI_H.vs.MSS[grepl("HLA-DR", MSI_H.vs.MSS$SYMBOL), ]
+MSI_H.vs.MSS_hiCIRC[grepl("HLA-DR", MSI_H.vs.MSS_hiCIRC$SYMBOL), ]
+MSS_hiCIRC.vs.MSS[grepl("HLA-DR", MSS_hiCIRC.vs.MSS$SYMBOL), ]
+
+# save.image(file = "Counts.RData")
+load("Counts.RData")
+
+see_pats <- merge(temp, pat_sub, by = "Patient.ID")
+head(see_pats)
+
+nrow(droplevels(subset(see_pats, group.y == "MSS-hiCIRC")))
+nrow(droplevels(subset(see_pats, group.y == "MSS")))
+nrow(droplevels(subset(see_pats, group.y == "MSI-H")))
+
+
+##################################################################
 
 # Geneset enrichment analysis
 ## Open connections
@@ -304,26 +335,28 @@ library(qusage)
 ## Read in the Genesets
 All_gmt <- read.gmt("./Data/Genesets/msigdb.v6.2.entrez.gmt")
 KEGG_gmt <- read.gmt("./Data/Genesets/c2.cp.kegg.v6.2.entrez.gmt")
-GO_terms <- read.gmt("./Data/Genesets/c5.all.v6.2.entrez.gmt")
-
+GO_gmt <- read.gmt("./Data/Genesets/c5.all.v6.2.entrez.gmt")
+immuno_gmt <- read.gmt("./Data/Genesets/c7.all.v6.2.entrez.gmt")
+hallmark_gmt <- read.gmt("./Data/Genesets/h.all.v6.2.entrez.gmt")
 
 ## Filter genesets that appear in only KEGG and GO databases (6103 genesets)
-# filter_gmt <- All_gmt[names(All_gmt) %in% names(KEGG_gmt) | names(All_gmt) %in% names(GO_terms)]
-filter_gmt <- All_gmt[names(All_gmt) %in% names(GO_terms)]
+# filter_gmt <- All_gmt[names(All_gmt) %in% names(KEGG_gmt) | names(All_gmt) %in% names(GO_gmt)]
+# filter_gmt <- All_gmt[names(All_gmt) %in% names(GO_gmt)]
 
 ## Filter genesets for very small/very big sizes (reduces multiple comparison deficit) (4326 genesets)
-geneset_sizes <- unlist(lapply(All_gmt, length))
+geneset_sizes <- unlist(lapply(hallmark_gmt, length))
 geneset_indices <- which(geneset_sizes>=15 & geneset_sizes<200)
-filtered_set <- All_gmt[geneset_indices]
+filtered_set <- hallmark_gmt[geneset_indices]
 
-head(filtered_set)
 
 ## Perform camera analysis on filtered geneset
-idx <- ids2indices(filtered_set, id = rownames(v))
+specific_genes <- v$genes[v$genes$ENSEMBL %in% rownames(v), ]
+idx <- ids2indices(filtered_set, id = specific_genes$ENTREZID)
 
 camera_results <- camera(v, idx, design, contrast = contr.matrix[, "MSI_HvsMSS_hiCIRC"])
-nrow(camera_results)
-droplevels(subset(camera_results, FDR <= 0.001))
+head(camera_results)
+View(camera_results)
+droplevels(subset(camera_results, FDR <= 0.01))
 
 
 # BiocManager::install("qusage")
@@ -365,7 +398,7 @@ camera_results_generic_em <- data.frame(rownames(camera_results_a), camera_descr
                                         camera_Phenotype,
                                         camera_genes)
 
-camera_results_file <- "../../Genesets/camera_results_generic_CD8.txt"
+camera_results_file <- "./Data/Genesets/camera_results_generic_hiCIRC_MSI.txt"
 write.table(camera_results_generic_em, file.path(camera_results_file), 
             col.name = T, sep = "\t", row.names = F, quote = F)
 # 
@@ -376,7 +409,7 @@ write.table(camera_results_generic_em, file.path(camera_results_file),
 # camera_results_VD1$camera_Phenotype <- ifelse((camera_results_VD1$camera_Phenotype == 1), "VD1 CD27LO", "VD1 CD27HI")
 # write.csv("../../Genesets/VD1_results.csv", x = camera_results_VD1, row.names = F)
 
-expression_file <- "../../Genesets/expression_file.txt"
+expression_file <- "./Data/Genesets/expression_file.txt"
 exp_fil <- as.data.frame(v$E)
 write.table(exp_fil, file.path(expression_file),
             col.name = T, sep = "\t", row.names = F, quote = F)
@@ -387,14 +420,14 @@ tryCatch(expr = { library(RCy3)},
          error = function(e) { install_github("cytoscape/RCy3")}, finally = library(RCy3))
 
 #defined threshold for GSEA enrichments (need to be strings for cyrest call)
-pvalue_threshold <- "0.05"
-qvalue_threshold <- "0.001"
+pvalue_threshold <- "0.5"
+qvalue_threshold <- "0.1"
 
 similarity_threshold <- "0.25"
 similarity_metric <- "JACCARD"
 
 # generic_gmt_file <- file.path(getwd(), gmt_file)
-analysis_name <- "EMRA_vs_Naive"
+analysis_name <- "MSI_HvsMSS_hiCIRC"
 cur_model_name <- paste("camera", analysis_name, sep="_")
 results_filename <- file.path(getwd(),  camera_results_file)
 
@@ -402,9 +435,9 @@ results_filename <- file.path(getwd(),  camera_results_file)
 current_network_name <- paste(cur_model_name, pvalue_threshold, qvalue_threshold, sep = "_")
 
 
-results_filename <- "/Users/JackMcMurray/OneDrive/UoB/PhD/Projects/4_Gamma_Delta/Cyto/camera_results_generic_CD8.txt"
-expression_filename <- "/Users/JackMcMurray/OneDrive/UoB/PhD/Projects/4_Gamma_Delta/Cyto/expression_file.txt"
-generic_gmt_file <- "/Users/JackMcMurray/OneDrive/UoB/PhD/Projects/4_Gamma_Delta/Cyto/msigdb.v6.2.entrez.gmt"
+results_filename <- "/Users/JackMcMurray/OneDrive/UoB/PhD/Projects/6_TCGA_Full/TCGA_FULL/Data/Genesets/camera_results_generic_hiCIRC_MSI.txt"
+expression_filename <- "/Users/JackMcMurray/OneDrive/UoB/PhD/Projects/6_TCGA_Full/TCGA_FULL/Data/Genesets/expression_file.txt"
+generic_gmt_file <- "/Users/JackMcMurray/OneDrive/UoB/PhD/Projects/6_TCGA_Full/TCGA_FULL/Data/Genesets/msigdb.v6.2.entrez.gmt"
 em_command = paste('enrichmentmap build analysisType=generic',
                    "gmtFile=", generic_gmt_file,
                    "pvalue=", pvalue_threshold,
@@ -432,3 +465,37 @@ if(grepl(pattern="Failed", response)){
 }
 response <- renameNetwork(current_network_name, as.numeric(current_network_suid))
 
+
+# Bespoke
+CTGenesets <- read.csv("../../1_TCGA/Exploratory_Data/Genesets/Cell_Type_Geneset.csv")
+SigGenesets <- read.csv("../../1_TCGA/Exploratory_Data/Genesets/Signature_Geneset.csv")
+Genesets <- rbind(CTGenesets, SigGenesets)
+
+dd <- deduplicate(Genesets)
+
+geneset_list <- list()
+for(i in levels(Genesets$Parameter)){
+  print(i)
+  work <- droplevels(subset(Genesets, Parameter == i))
+  genes <- levels(work$Hugo_Symbol)
+  geneset_list[[i]] <- genes
+}
+
+## Filter genesets for very small/very big sizes (reduces multiple comparison deficit) (4326 genesets)
+geneset_sizes <- unlist(lapply(geneset_list, length))
+geneset_indices <- which(geneset_sizes>=15 & geneset_sizes<200)
+filtered_set <- geneset_list[geneset_indices]
+
+th17 <- geneset_list[["Th17"]]
+## Perform camera analysis on filtered geneset
+specific_genes <- v$genes[v$genes$ENSEMBL %in% rownames(v), ]
+
+idx <- ids2indices(th17, id = specific_genes$SYMBOL)
+
+camera_results <- camera(v, idx, design, contrast = contr.matrix[, "MSI_HvsMSS_hiCIRC"])
+head(camera_results)
+View(camera_results)
+droplevels(subset(camera_results, FDR <= 0.01))
+
+rm(listDF)
+save.image(file = "Counts.RData")
