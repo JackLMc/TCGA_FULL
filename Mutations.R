@@ -11,8 +11,7 @@ my_comparisons <- list(c("MSS-hiCIRC", "MSI-H"),
                        c("MSI-H", "MSS"))
 cbcols <- c("MSS-hiCIRC" = "#999999",
             "MSI-H" = "#56B4E9",
-            "MSS" = "#009E73",
-            "MSI-L" = "#E69F00")
+            "MSS" = "#009E73")
 
 url <-"http://steverozen.net/data/Hg19repeats.rda"
 file <- basename(url)
