@@ -72,10 +72,17 @@ temp_df1 <- merge(converter2[, c("Patient.ID", "File.ID")], temp_df, by = "File.
 library(reshape2)
 Counts <- dcast(temp_df1, Gene ~ Patient.ID, sum, value.var = "Count")
 # droplevels(subset(temp_df1, Patient.ID == "TCGA.A6.2672" & Gene == "ENSG00000000003.13")) # Matches the figure in "Try"
+
+# library_sizes <- colSums(Counts[!'%in%'(colnames(Counts), "Gene")]) %>% as.data.frame() %>%
+#   rownames_to_column(., var = "Patient.ID")
+# colnames(library_sizes) <- c("Patient.ID", "Library_size")
+# write.csv("./Output/Library_Sizes.csv", x = library_sizes, row.names = F)
+
 Counts_cleaned <- droplevels(Counts[!'%in%'(Counts$Gene, 
                                             c("__alignment_not_unique", "__no_feature",
                                               "__not_aligned", "__too_low_aQual", "__ambiguous")), ])
 ## Should these be used to talk about library sizes?
+
 save.image(file = "Counts.RData")
 
 
