@@ -231,10 +231,15 @@ pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
 
 muta1 <- muta
 pat_sub1 <- droplevels(subset(pat_sub, Subtype == "MSS-hiCIRC"))
+nlevels(pat_sub1$Patient.ID)
+no_pats <- 0.75 * 96
+
 muta1@data <- muta1@data[muta1@data$Patient.ID %in% pat_sub1$Patient.ID,]
 
 
+
+
 lollipopPlot(muta1, gene = "APC")
-geneCloud(muta1, minMut = 8)
+geneCloud(muta1, minMut = no_pats)
 
 
