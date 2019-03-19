@@ -10,6 +10,7 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
             "MSS" = "#009E73",
             "MSI-L" = "#E69F00")
 
+# source("Clinical.R") # Run to gain the clinical dataframe that's in Output (Clin_614)
 load("FPKMs.RData")
 
 # Looking for the files
@@ -78,22 +79,6 @@ FPKMs <- dcast(temp_df1, Gene ~ Patient.ID, sum, value.var = "FPKM")
 # Patient_list <- colnames(FPKMs_cleaned)[!'%in%'(colnames(FPKMs_cleaned), "Gene")]
 # write.table(Patient_list, "./Output/Patient_list.txt", row.names = F)
 
-# ##### START EDGER
-# library(edgeR)
-# # Replenish "x"
-# row.names(FPKMs_cleaned) <- NULL
-# FPKMs_cleaned <- FPKMs_cleaned %>% column_to_rownames(., var = "Gene")
-# x <- DGEList(FPKMs_cleaned)
-# 
-# # Get groups
-# temp <- x$samples %>% 
-#   rownames_to_column(., "Patient.ID")
-# colnames(pat_sub)[colnames(pat_sub) == "Subtype"] <- "group"
-# x$samples <- merge(temp[, c("Patient.ID", "lib.size", "norm.factors")], pat_sub[, c("Patient.ID", "group")], by = "Patient.ID") %>% column_to_rownames(., var = "Patient.ID")
-# group <- x$samples$group
-# 
-# samplenames <- colnames(x)
-
 # Gaining second dataframe (Symbols)
 # biocLite("Homo.sapiens", dependencies = T)
 library(Homo.sapiens)
@@ -119,7 +104,7 @@ FPKM3 <- FPKM2 %>%
 
 # CIRC Geneset
 CIRC_IG <- read.csv("./Exploratory_Data/Genesets/CIRC.csv")
-CIRC_IG$Hugo_Symbol <- as.factor(CIRC_IG$Hugo_Symbol)
+CIRC_IG$SYMBOL <- as.factor(CIRC_IG$SYMBOL)
 
 #### CIRC ####
 # Label
@@ -137,38 +122,45 @@ Enrichment_CIRC1 <- Enrichment_CIRC %>% as.data.frame() %>%
   spread(., key = "Geneset", value = "Enrich")
 
 Enrichment_CIRC1$Patient.ID <- as.factor(Enrichment_CIRC1$Patient.ID)
-save.image(file = "FPKMs.RData")
-# CIRC_clin <- merge(Enrichment_CIRC1, tcga_pub_clinical, by = "Patient.ID")
+# write.table("./Output/Patient_list.txt", x = Enrichment_CIRC1$Patient.ID, row.names = F)
+# save.image(file = "FPKMs.RData")
 
-# Plot
+
+########## START ##########
+##### Get the Clinical Stuff in ####
+Clin_614 <- read.csv("./Output/Clinical_Data_614.csv")
+CIRC_clin <- merge(Enrichment_CIRC1, Clin_614, by = "Patient.ID")
+
 # pdf("./Figures/Clustering/Violin Plot of Mean CIRC.pdf", height = 6, width = 6)
-# ggplot(CIRC_clin, aes(x = MSI_STATUS, y = CIRC_Genes)) +
-#   geom_boxplot(alpha = 0.5, width = 0.2) + 
-#   geom_violin(aes(MSI_STATUS, fill = MSI_STATUS),
-#               scale = "width", alpha = 0.8) +
-#   scale_fill_manual(values = cbcols) +
-#   labs(x = "MSI Status", y = "CIRC Enrichment Score") +
-#   theme_bw() +
-#   theme(axis.text = element_text(size = 16)) +
-#   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-#   theme(legend.direction = "horizontal", legend.position = "top") + 
-#   stat_compare_means(comparisons = list((c("MSI-H", "MSS"))),
-#                      label = "p.signif", method = "wilcox.test")
+ggplot(CIRC_clin, aes(x = MSI_STATUS, y = CIRC_Genes)) +
+  geom_boxplot(alpha = 0.5, width = 0.2) +
+  geom_violin(aes(MSI_STATUS, fill = MSI_STATUS),
+              scale = "width", alpha = 0.8) +
+  scale_fill_manual(values = cbcols) +
+  labs(x = "MSI Status", y = "CIRC Enrichment Score") +
+  theme_bw() +
+  theme(axis.text = element_text(size = 16)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.direction = "horizontal", legend.position = "top") +
+  stat_compare_means(comparisons = list((c("MSI-H", "MSS"))),
+                     label = "p.signif", method = "wilcox.test")
 # dev.off()
-# 
-# 
-# ##### Analysing variance differences ####
-# # Levene-test (analysis of variance)
-# car:: leveneTest(CIRC_clin$CIRC_Genes, group = CIRC_clin$MSI_STATUS, center = "median")
-# # var.test(CIRC_Genes ~ MSI_STATUS, data = CIRC_clin)
-# fligner.test(CIRC_clin$CIRC_Genes, g = CIRC_clin$MSI_STATUS)
-# bartlett.test(CIRC_clin$CIRC_Genes, g = CIRC_clin$MSI_STATUS)
-# 
-# # Coefficient of variance
-# # install_github("benmarwick/cvequality")
-# library(cvequality)
-# # cv_test <- with(CIRC_clin, asymptotic_test(CIRC_Genes, MSI_STATUS)) # Not significant
-# cv_test_MSLRT <- with(CIRC_clin, mslr_test(nr = 1e4, CIRC_Genes, MSI_STATUS))
+
+##### Analysing variance differences ####
+# Levene-test (analysis of variance)
+CIRC_clin$MSI_STATUS <- as.factor(CIRC_clin$MSI_STATUS)
+car:: leveneTest(CIRC_clin$CIRC_Genes, group = CIRC_clin$MSI_STATUS, center = "median")
+# var.test(CIRC_Genes ~ MSI_STATUS, data = CIRC_clin)
+fligner.test(CIRC_clin$CIRC_Genes, g = CIRC_clin$MSI_STATUS)
+bartlett.test(CIRC_clin$CIRC_Genes, g = CIRC_clin$MSI_STATUS)
+
+# Coefficient of variance
+# install_github("benmarwick/cvequality")
+library(cvequality)
+cv_test <- with(CIRC_clin, asymptotic_test(CIRC_Genes, MSI_STATUS))
+cv_test_MSLRT <- with(CIRC_clin, mslr_test(nr = 1e4, CIRC_Genes, MSI_STATUS))
+
+## ALL MEASURES ARE HIGHLY SIGNIFICANT.
 
 #### Clustering ####
 # Partitioning clustering
@@ -177,8 +169,7 @@ CIRC_for_Cluster <- droplevels(subset(FPKM2, SYMBOL %in% CIRC_genes$CIRC_Genes))
 pca1 <- CIRC_for_Cluster %>% 
   gather(contains("TCGA"), key = "Patient.ID", value = "FPKM") %>%
   spread(key = "SYMBOL", value = "FPKM") %>% 
-  merge(FD1, by = "Patient.ID") # Merge with cleaned clinical
-head(pca1)
+  merge(Clin_614, by = "Patient.ID") # Merge with cleaned clinical
 
 my_data <- pca1 %>%
   droplevels() %>%
@@ -233,7 +224,7 @@ dev.off()
 
 
 # RTsne
-set.seed(98)
+set.seed(1)
 library(Rtsne)
 tsne_out <- Rtsne(as.matrix(df))
 tsne_dimensions <- as.data.frame(tsne_out$Y)
@@ -291,21 +282,12 @@ ggplot(df1, aes(x = Phenograph_Clusters, y = CIRC_Genes)) +
                      label = "p.signif", method = "wilcox.test")
 dev.off()
 
-head(df)
-
-
-
-#### Doesn't seem to work nicely as before ####
-less_than_neg10_dim1 <- df[tsne_dimensions$Dim1 <= (-15), ]
-lessthan <- rownames_to_column(less_than_neg10_dim1, var = "Patient.ID")
-lt <- merge(lessthan, FD1, by = "Patient.ID")
+remove_low_CIRC <- df[tsne_dimensions$Dim1 >= (-25) & tsne_dimensions$Dim1 <= -5, ]
+lessthan <- rownames_to_column(remove_low_CIRC, var = "Patient.ID")
+lt <- merge(lessthan, Clin_614, by = "Patient.ID")
 hiCIRC_pats <- droplevels(subset(lt, MSI_STATUS == "MSS"))$Patient.ID
 
-
 df1a$Subtype <- ifelse((df1a$Patient.ID %in% hiCIRC_pats), "MSS-hiCIRC", as.character(df1a$MSI_STATUS))
-head(df1a)
-
-
 
 ggplot(df1a, aes(x = Subtype, y = CIRC_Genes)) +
   geom_boxplot(alpha = 0.5, width = 0.2) +
@@ -320,100 +302,135 @@ ggplot(df1a, aes(x = Subtype, y = CIRC_Genes)) +
   stat_compare_means(comparisons = my_comparisons,
                      label = "p.signif", method = "wilcox.test")
 
-
-
-
-
-
-thee <- droplevels(subset(df1a, Subtype == "MSS-hiCIRC" & CIRC_Genes <= 0.3))
-thee
-MSIs <- droplevels(subset(df1a, Subtype == "MSI-H" & CIRC_Genes <= 0.3))
-head(MSIs)
-
-top75 <- unname(quantile(MSIs$CIRC_Genes, .25))
-top75
-
-
-these <- merge(Enrichment_CIRC1, pat_sub[, c("Patient.ID", "Subtype")], by = "Patient.ID")
-these
-
-range(these$CIRC_Genes)
-
-
-
-
-
-# find_pheno_comb <- function(Phenotypes){
-#   Phenotype1 <- Phenotypes
-#   Phenotype2 <- Phenotypes
-#   combin <- as.data.frame(cbind(Phenotype1, Phenotype2))
-#   combin$Phenotype1 <- as.factor(Phenotype1)
-#   combin$Phenotype2 <- as.factor(Phenotype2)
-#   combinations <- expand.grid(levels(combin$Phenotype1), levels(combin$Phenotype2))
-#   uniqcomb <- combinations[!combinations$Var1==combinations$Var2,]
-#   pairs = list()
-#   for(i in seq_len(nrow(uniqcomb))){
-#     here <- as.vector(unlist(uniqcomb[i,]))
-#     pairs[[length(pairs)+1]] <- here
-#   }
-#   return(pairs)
-# }
-
-
 # Hierarchical clustering
-library(gplots)
-library(RColorBrewer)
-mypalette <- brewer.pal(11,"RdYlBu")
-morecols <- colorRampPalette(mypalette)
-mycol <- colorpanel(1000,"blue","white","red")
-distCor <- function(x) as.dist(1-cor(t(x)))
-hclustAvg <- function(x) hclust(x, method = "average")
-heatmap.2(as.matrix(df),
-          col = mycol,
-          trace = "none",
-          density.info = "none",
-          cex.main = 1.5,
-          #ColSideColors = col.cell,
-          scale = "column",
-          margin = c(10,5), lhei = c(2,10),
-          hclustfun = hclustAvg,
-          RowSideColors = col.cell1)
+# library(gplots)
+# library(RColorBrewer)
+# mypalette <- brewer.pal(11,"RdYlBu")
+# morecols <- colorRampPalette(mypalette)
+# mycol <- colorpanel(1000,"blue","white","red")
+# distCor <- function(x) as.dist(1-cor(t(x)))
+# hclustAvg <- function(x) hclust(x, method = "average")
+# heatmap.2(as.matrix(df),
+#           col = mycol,
+#           trace = "none",
+#           density.info = "none",
+#           cex.main = 1.5,
+#           #ColSideColors = col.cell,
+#           scale = "column",
+#           margin = c(10,5), lhei = c(2,10),
+#           hclustfun = hclustAvg,
+#           RowSideColors = col.cell1)
 
 
-## WORKS quite well
-FD1$MSI_STATUS <- as.factor(FD1$MSI_STATUS)
-col.cell1 <- c("#999999","#56B4E9")[FD1$MSI_STATUS]
+#### WRITE OUT THE hiCIRC PATIENT SUBTYPES ####
+write.csv("./Output/Patient_Subtypes.csv", x = df1a[, c("Patient.ID", "CIRC_Genes", "Subtype")], row.names = F)
+
+# Pearson correlation across genesets.
+CTGenesets <- read.csv("./Exploratory_Data/Genesets/Cell_Type_Geneset.csv")
+SigGenesets <- read.csv("./Exploratory_Data/Genesets/Signature_Geneset.csv")
+Genesets <- rbind(CTGenesets, SigGenesets)
+
+dd <- deduplicate(Genesets)
+
+geneset_list <- list()
+for(i in levels(Genesets$Parameter)){
+  print(i)
+  work <- droplevels(subset(Genesets, Parameter == i))
+  genes <- levels(work$Hugo_Symbol)
+  geneset_list[[i]] <- genes
+}
 
 
-head(df1)
-CIRCs <- droplevels(subset(df1, Subtype != "MSS-hiCIRC"))
+Enrichments <- gsva(FPKM3, geneset_list) %>% as.data.frame() %>%
+  rownames_to_column(., "Geneset") %>% gather(contains("TCGA"), key = "Patient.ID", value = "Enrichment") %>%
+  merge(., df1a, by = "Patient.ID")
+
+Enrichments$Geneset <- as.factor(Enrichments$Geneset)
+
+for(i in levels(Enrichments$Geneset)){
+  print(i)
+  work <- droplevels(subset(Enrichments, Geneset == i))
+  temp_plot <- ggplot(work, aes(x = Subtype, y = Enrichment)) +
+    geom_boxplot(alpha = 0.5, width = 0.2) + 
+    geom_violin(aes(Subtype, fill = Subtype),
+                scale = "width", alpha = 0.8) +
+    scale_fill_manual(values = cbcols) +
+    labs(x = "MSI Status", y = paste(i, "enrichment score")) +
+    theme_bw() +
+    theme(axis.text = element_text(size = 16)) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(legend.direction = "horizontal", legend.position = "top") + 
+    stat_compare_means(comparisons = my_comparisons,
+                       label = "p.signif", method = "wilcox.test")
+  filen <- paste0(i, ".pdf")
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
+                   path = "./Figures/Gene_Sets/Enrichment",
+                   height = 6, width = 6)}
 
 
-range(CIRCs$CIRC_Genes)
-MSIs <- droplevels(subset(df1, Subtype == "MSI-H"))
+## Individual genes
+# how many pats
+kable(dcast(df1a, Subtype ~., length))
 
-df1$Subtype <- as.factor(df1$Subtype)
-levels(df1$Subtype)
+MA <- merge(FPKM, df1a[, c("Patient.ID", "Subtype", "CIRC_Genes")], by = "Patient.ID")
+genes_of_interest <- c("IL6", "IL1B", "IL23A", "TGFB1",
+                       "CCL2", "CCL5", "CXCL10", "CCL20",
+                       "CCR6", "TLR4", "TLR2", "CIITA",
+                       "RORC", "IL17A", "IL23R",
+                       "CDC42")
 
-#### FPKM
-b <- a[, c("Patient.ID", "MSI_STATUS", "Phenograph_Clusters")]
-droplevels(subset(b, MSI_STATUS == "MSI-H"))
+GOI <- droplevels(MA[MA$SYMBOL %in% genes_of_interest, ]) %>%
+  .[, c("Patient.ID", "SYMBOL", "FPKM", "Subtype", "CIRC_Genes")]
+GOI$SYMBOL <- as.factor(GOI$SYMBOL)
 
-pat_sub <- read.csv("./Data/Important/patient_subtypes.csv")
+### IMPORTANT BIT
+GOI1 <- droplevels(subset(GOI, Subtype != "MSI-H"))
+### IMPORTANT BIT
 
-these <- merge(b, pat_sub, by = "Patient.ID")
-head(these)
+for(i in levels(GOI1$SYMBOL)){
+  print(i)
+  work <- droplevels(subset(GOI1, SYMBOL == i))
+  work$Logged <- log2(work$FPKM + 1)
+  temp_plot <- ggplot(work, aes(y = Logged, x = CIRC_Genes))+
+    geom_point(alpha = 0.8, size = 4, colour = "slategray") +
+    labs(x = "CIRC_Genes Enrichment", y = paste0("Log2(", i, " + 1)")) +
+    theme_bw() +
+    # geom_text(aes(x = -0.3, y = .75, label = lm_eqn(lm(CIRC_Genes ~ Enrichment, work))), parse = T) +
+    # scale_color_manual(values = cbcols) +
+    geom_smooth(method = "lm", se = F) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(legend.position = "none") +
+    stat_cor()
+  filen <- paste0(i, ".pdf")
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
+                   path = "./Figures/Genes_of_interest/Correlations",
+                   height = 6, width = 6)
+}
 
 
-View(these)
 
-# Calculate Enrichment of CIRC
-library(GSVA)
-Enrichment_MSI <- gsva(FPKM3, MSI_genes) 
 
-Enrichment_MSI1 <- Enrichment_MSI %>% as.data.frame() %>%
-  rownames_to_column(., var = "Geneset") %>%
-  gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
-  spread(., key = "Geneset", value = "Enrich")
+for(i in 1:length(genes_of_interest)){
+  gene <- genes_of_interest[i]
+  print(gene)
+  GOI <- droplevels(subset(MA, SYMBOL == gene))
+  GOI$Rank <- rank(GOI$FPKM)
+  temp_plot <- ggplot(GOI, aes(x = Subtype, y = Rank)) +
+    geom_boxplot(alpha = 0.5, width = 0.2) + 
+    geom_violin(aes(Subtype, fill = Subtype),
+                scale = "width", alpha = 0.8) +
+    scale_fill_manual(values = cbcols) +
+    labs(x = "MSI Status", y = paste("Rank transformed", gene, "FPKM", sep = " ")) +
+    theme_bw() +
+    theme(axis.text = element_text(size = 16)) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(legend.direction = "horizontal", legend.position = "top") + 
+    stat_compare_means(comparisons = my_comparisons,
+                       label = "p.signif", method = "wilcox.test")
+  filen <- paste0(gene, ".pdf")
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
+                   path = "./Figures/Genes_of_interest",
+                   height = 6, width = 6)}
 
-Enrichment_MSI1$Patient.ID <- as.factor(Enrichment_MSI1$Patient.ID)
+
+                
