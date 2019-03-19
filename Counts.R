@@ -29,8 +29,8 @@ for (i in names(lists)){
 names(lists) <- gsub("./Data/Counts/", "", names(lists))
 
 
-# Patients I have CIRC scores and microsatellite status for.
-pat_sub <- read.csv("./Data/Important/patient_subtypes.csv")
+## Patients
+pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
 converter <- read.delim("./Data/Important/gdc_sample_sheet.2019-03-15.tsv")
 converter$Patient.ID <- gsub("-", ".", converter$Case.ID)
 converter1 <- converter[converter$Patient.ID %in% pat_sub$Patient.ID, ]

@@ -7,8 +7,7 @@ my_comparisons <- list(c("MSS-hiCIRC", "MSI-H"),
                        c("MSI-H", "MSS"))
 cbcols <- c("MSS-hiCIRC" = "#999999",
             "MSI-H" = "#56B4E9",
-            "MSS" = "#009E73",
-            "MSI-L" = "#E69F00")
+            "MSS" = "#009E73")
 
 
 stats <- read.delim("./Data/statistics_unmapped.txt")
@@ -23,15 +22,16 @@ mapped_no_norm <- droplevels(subset(stats_mapped, cases.0.samples.0.sample_type 
 mapped_no_norm$Patient.ID <- gsub("-", ".", mapped_no_norm$cases.0.submitter_id)
 
 # Combine with patient subtypes
-pat_sub <- read.csv("./Data/patient_subtypes.csv")
+pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
 TCGA_pats <- merge(mapped_no_norm, pat_sub, by = "Patient.ID")
+
 TCGA_pats <- TCGA_pats[, c("Patient.ID", "file_name", "Subtype", "CIRC_Genes")]
 stats$file_name <- stats$SAMPLES
 
 merged_data <- merge(stats[,c("file_name", "unmapped")], TCGA_pats, by = "file_name")
 
 merged_data_clean <- merged_data[ c("Patient.ID", "unmapped", "Subtype")]
-head(merged_data_clean)
+
 
 merged_data_clean$Patient.ID <- as.factor(merged_data_clean$Patient.ID)
 DF1 <- data.frame(stringsAsFactors = F)
@@ -45,13 +45,13 @@ for(i in levels(merged_data_clean$Patient.ID)){
   c <- c + 1
 }
 
-DF1$logged <- log10(DF1$unmapped)
+DF1$logged <- log10(DF1$unmapped + 1)
 ggplot(DF1, aes(x = Subtype, y = logged)) +
   geom_boxplot(alpha = 0.5, width = 0.2) + 
   geom_violin(aes(Subtype, fill = Subtype),
               scale = "width", alpha = 0.8) +
   scale_fill_manual(values = cbcols) +
-  labs(x = "MSI Status", y = "Log10(unmapped reads)") +
+  labs(x = "MSI Status", y = "Log10(unmapped reads + 1)") +
   theme_bw() +
   theme(axis.text = element_text(size = 16)) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
