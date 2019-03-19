@@ -225,24 +225,87 @@ dev.off()
 #   stat_compare_means(comparisons = my_comparisons, label = "p.signif")
 
 ##### Recurrent Mutations #####
+devtools::install_github(repo = "PoisonAlien/TCGAmutations")
+
+
+
 library(maftools)
 library(tidyverse)
 muta <- read.maf("./Data/Mutations/mc3.v0.2.8.PUBLIC.maf", verbose = F, isTCGA = T)
 
 pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
 pat_sub1 <- droplevels(subset(pat_sub, Subtype == "MSS-hiCIRC"))
-pat_sub1 <- droplevels(subset(pat_sub, Subtype == "MSS"))
-pat_sub1 <- droplevels(subset(pat_sub, Subtype == "MSI-H"))
-no_pats <- round(0.75 * nlevels(pat_sub1$Patient.ID))
+pat_sub2 <- droplevels(subset(pat_sub, Subtype == "MSS"))
+pat_sub3 <- droplevels(subset(pat_sub, Subtype == "MSI-H"))
 
-patients <- levels(pat_sub1$Patient.ID)
-patients <- gsub(".", "-", patients)
+no_pats1 <- round(0.75 * nlevels(pat_sub1$Patient.ID))
+no_pats2 <- round(0.75 * nlevels(pat_sub2$Patient.ID))
+no_pats3 <- round(0.75 * nlevels(pat_sub3$Patient.ID))
 
-muta1 <- subsetMaf(muta, tsb = patients, isTCGA = T)
+patients1 <- levels(pat_sub1$Patient.ID)
+patients1 <- gsub("\\.", "-", patients1)
+patients2 <- levels(pat_sub2$Patient.ID)
+patients2 <- gsub("\\.", "-", patients2)
+patients3 <- levels(pat_sub3$Patient.ID)
+patients3 <- gsub("\\.", "-", patients3)
+
+muta1 <- subsetMaf(muta, tsb = patients1, isTCGA = T, mafObj = T)
+muta2 <- subsetMaf(muta, tsb = patients2, isTCGA = T, mafObj = T)
+muta3 <- subsetMaf(muta, tsb = patients3, isTCGA = T, mafObj = T)
+
+
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-geneCloud(muta1, minMut = no_pats, top = 8, col = cbPalette)
+geneCloud(muta1, minMut = no_pats, top = 20, col = cbPalette)
+geneCloud(muta2, minMut = no_pats, top = 20, col = cbPalette)
+geneCloud(muta3, minMut = no_pats, top = 20, col = cbPalette)
 
 ## Pick from geneCloud plot - clustered mutations?
-lollipopPlot(muta1, gene = "TP53")
+lollipopPlot(muta1, gene = "APC")
+lollipopPlot(muta2, gene = "APC")
+lollipopPlot(muta3, gene = "APC")
+dev.off()
+
+## Oncoplots
+oncoplot(maf = muta1, top = 10)
+dev.off()
+
+oncoplot(maf = muta2, top = 10)
+dev.off()
+
+oncoplot(maf = muta1, top = 10)
 
 
+
+# # transitions and transversions
+# laml.titv = titv(maf = muta1, plot = FALSE, useSyn = TRUE)
+# #plot titv summary
+# plotTiTv(res = laml.titv)
+# 
+# laml.titv = titv(maf = muta2, plot = FALSE, useSyn = TRUE)
+# #plot titv summary
+# plotTiTv(res = laml.titv)
+# 
+# laml.titv = titv(maf = muta3, plot = FALSE, useSyn = TRUE)
+# #plot titv summary
+# plotTiTv(res = laml.titv)
+# dev.off()
+
+somaticInteractions(maf = muta1, top = 25, pvalue = c(0.05, 0.1))
+dev.off()
+somaticInteractions(maf = muta2, top = 25, pvalue = c(0.05, 0.1))
+dev.off()
+somaticInteractions(maf = muta3, top = 25, pvalue = c(0.05, 0.1))
+dev.off()
+
+
+patients1
+muta1.sig = oncodrive(maf = muta1, AACol = 'Protein_Change', minMut = 5, pvalMethod = 'zscore')
+TCGA.A6.3807.het = inferHeterogeneity(maf = muta, tsb = 'TCGA-A6-3807', vafCol = 'i_TumorVAF_WU')
+
+muta@data
+
+head(laml.sig)
+
+
+
+plotOncodrive(res = laml.sig, fdrCutOff = 0.1, useFraction = TRUE)
