@@ -226,20 +226,19 @@ dev.off()
 
 ##### Recurrent Mutations #####
 library(maftools)
-muta <- read.maf("./Data/Mutations/mc3.v0.2.8.PUBLIC.maf")
-pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
-
+library(tidyverse)
+muta <- read.maf("./Data/Mutations/mc3.v0.2.8.PUBLIC.maf", verbose = F)
 muta1 <- muta
+
+pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
 pat_sub1 <- droplevels(subset(pat_sub, Subtype == "MSS-hiCIRC"))
 nlevels(pat_sub1$Patient.ID)
-no_pats <- 0.75 * 96
+no_pats <- 0.75 * nlevels(pat_sub1$Patient.ID)
 
 muta1@data <- muta1@data[muta1@data$Patient.ID %in% pat_sub1$Patient.ID,]
-
-
-
-
-lollipopPlot(muta1, gene = "APC")
 geneCloud(muta1, minMut = no_pats)
+
+## Pick from geneCloud plot - clustered mutations?
+lollipopPlot(muta1, gene = "APC")
 
 
