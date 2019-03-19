@@ -236,7 +236,7 @@ nlevels(pat_sub1$Patient.ID)
 no_pats <- 0.75 * nlevels(pat_sub1$Patient.ID)
 
 muta1@data <- muta1@data[muta1@data$Patient.ID %in% pat_sub1$Patient.ID,]
-geneCloud(muta1, minMut = no_pats)
+geneCloud(muta1, minMut = no_pats, top = 10)
 
 ## Pick from geneCloud plot - clustered mutations?
 lollipopPlot(muta1, gene = "APC")
