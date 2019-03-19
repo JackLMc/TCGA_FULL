@@ -227,18 +227,22 @@ dev.off()
 ##### Recurrent Mutations #####
 library(maftools)
 library(tidyverse)
-muta <- read.maf("./Data/Mutations/mc3.v0.2.8.PUBLIC.maf", verbose = F)
-muta1 <- muta
+muta <- read.maf("./Data/Mutations/mc3.v0.2.8.PUBLIC.maf", verbose = F, isTCGA = T)
 
 pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
 pat_sub1 <- droplevels(subset(pat_sub, Subtype == "MSS-hiCIRC"))
-nlevels(pat_sub1$Patient.ID)
-no_pats <- 0.75 * nlevels(pat_sub1$Patient.ID)
+pat_sub1 <- droplevels(subset(pat_sub, Subtype == "MSS"))
+pat_sub1 <- droplevels(subset(pat_sub, Subtype == "MSI-H"))
+no_pats <- round(0.75 * nlevels(pat_sub1$Patient.ID))
 
-muta1@data <- muta1@data[muta1@data$Patient.ID %in% pat_sub1$Patient.ID,]
-geneCloud(muta1, minMut = no_pats, top = 10)
+patients <- levels(pat_sub1$Patient.ID)
+patients <- gsub(".", "-", patients)
+
+muta1 <- subsetMaf(muta, tsb = patients, isTCGA = T)
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+geneCloud(muta1, minMut = no_pats, top = 8, col = cbPalette)
 
 ## Pick from geneCloud plot - clustered mutations?
-lollipopPlot(muta1, gene = "APC")
+lollipopPlot(muta1, gene = "TP53")
 
 
