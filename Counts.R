@@ -31,7 +31,7 @@ names(lists) <- gsub("./Data/Counts/", "", names(lists))
 
 ## Patients
 pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
-converter <- read.delim("./Data/Important/gdc_sample_sheet.2019-03-15.tsv")
+converter <- read.delim("./Data/Important/gdc_sample_sheet_counts.tsv")
 converter$Patient.ID <- gsub("-", ".", converter$Case.ID)
 converter1 <- converter[converter$Patient.ID %in% pat_sub$Patient.ID, ]
 converter1$File.Name <- gsub(".htseq.counts.gz", "", converter1$File.Name)
