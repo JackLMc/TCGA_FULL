@@ -45,13 +45,21 @@ for(i in levels(merged_data_clean$Patient.ID)){
   c <- c + 1
 }
 
-DF1$logged <- log10(DF1$unmapped + 1)
-ggplot(DF1, aes(x = Subtype, y = logged)) +
+
+lib_size <- read.csv("./Output/Library_Sizes.csv")
+DF2 <- merge(DF1, lib_size, by = "Patient.ID")
+
+DF2$unmap_percent <- (DF2$unmapped / DF2$Library_size) * 100
+
+
+DF2$ranked <- rank(DF2$unmap_percent)
+
+ggplot(DF2, aes(x = Subtype, y = ranked)) +
   geom_boxplot(alpha = 0.5, width = 0.2) + 
   geom_violin(aes(Subtype, fill = Subtype),
               scale = "width", alpha = 0.8) +
   scale_fill_manual(values = cbcols) +
-  labs(x = "MSI Status", y = "Log10(unmapped reads + 1)") +
+  labs(x = "Subtype", y = "Rank-transformed % unmapped reads") +
   theme_bw() +
   theme(axis.text = element_text(size = 16)) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
