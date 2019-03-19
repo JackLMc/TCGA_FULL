@@ -224,3 +224,17 @@ dev.off()
 #   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
 #   stat_compare_means(comparisons = my_comparisons, label = "p.signif")
 
+##### Recurrent Mutations #####
+library(maftools)
+muta <- read.maf("./Data/Mutations/mc3.v0.2.8.PUBLIC.maf")
+pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
+
+muta1 <- muta
+pat_sub1 <- droplevels(subset(pat_sub, Subtype == "MSS-hiCIRC"))
+muta1@data <- muta1@data[muta1@data$Patient.ID %in% pat_sub1$Patient.ID,]
+
+
+lollipopPlot(muta1, gene = "APC")
+geneCloud(muta1, minMut = 8)
+
+
