@@ -324,7 +324,60 @@ ggplot(df1a, aes(x = Subtype, y = CIRC_Genes)) +
 
 #### WRITE OUT THE hiCIRC PATIENT SUBTYPES ####
 write.csv("./Output/Patient_Subtypes.csv", x = df1a[, c("Patient.ID", "CIRC_Genes", "Subtype")], row.names = F)
+pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
 
+
+
+##### GENESETS #####
+# Ping
+Ping <- read.csv("./Exploratory_Data/Genesets/Ping_Chih_Ho.csv")
+
+Ping_List <- list()
+Ping$Name <- as.factor(Ping$Name)
+Ping$Gene <- as.factor(Ping$Gene)
+
+c <- 1
+for(i in levels(Ping$Name)){
+  print(i)
+  work <- droplevels(subset(Ping, Name == i))
+  Genes <- levels(work$Gene)
+  Ping_List[[i]] <- Genes
+  c <- c + 1
+}
+
+Enrichment_Ping <- gsva(FPKM3, Ping_List)
+Enrichment_Ping1 <- Enrichment_Ping %>% as.data.frame() %>%
+  rownames_to_column(., var = "Geneset") %>%
+  gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
+  spread(., key = "Geneset", value = "Enrich")
+
+Enrichment_Ping1$Patient.ID <- as.factor(Enrichment_Ping1$Patient.ID)
+Enrich <- merge(pat_sub, Enrichment_Ping1, by = "Patient.ID")
+
+Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -CIRC_Genes, -Patient.ID, -Subtype)
+Enrich1$Parameter <- as.factor(Enrich1$Parameter)
+
+## Plot pearson correlation
+for(i in levels(Enrich1$Parameter)){
+  print(i)
+  work <- droplevels(subset(Enrich1, Parameter == i))
+  temp_plot <- ggplot(work, aes(y = Enrichment, x = CIRC_Genes))+
+    geom_point(alpha = 0.8, size = 4, colour = "slategray") +
+    labs(x = "CIRC enrichment score", y = paste(i, "enrichment score")) +
+    theme_bw() +
+    # geom_text(aes(x = -0.3, y = .75, label = lm_eqn(lm(CIRC_Genes ~ Enrichment, work))), parse = T) +
+    # scale_color_manual(values = cbcols) +
+    geom_smooth(method = "lm", se = F) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(legend.position = "none") +
+    stat_cor()
+  filen <- paste0(i, ".pdf")
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf", path = "./Figures/Gene_Sets/Pearson",
+                   height = 6, width = 6)
+}
+
+## Collated
+library(GSVA)
 # Pearson correlation across genesets.
 CTGenesets <- read.csv("./Exploratory_Data/Genesets/Cell_Type_Geneset.csv")
 SigGenesets <- read.csv("./Exploratory_Data/Genesets/Signature_Geneset.csv")
@@ -343,10 +396,30 @@ for(i in levels(Genesets$Parameter)){
 
 Enrichments <- gsva(FPKM3, geneset_list) %>% as.data.frame() %>%
   rownames_to_column(., "Geneset") %>% gather(contains("TCGA"), key = "Patient.ID", value = "Enrichment") %>%
-  merge(., df1a, by = "Patient.ID")
+  merge(., pat_sub, by = "Patient.ID")
 
 Enrichments$Geneset <- as.factor(Enrichments$Geneset)
 
+# Pearson
+for(i in levels(Enrichments$Geneset)){
+  print(i)
+  work <- droplevels(subset(Enrichments, Geneset == i))
+  temp_plot <- ggplot(work, aes(y = Enrichment, x = CIRC_Genes))+
+    geom_point(alpha = 0.8, size = 4, colour = "slategray") +
+    labs(x = "CIRC enrichment score", y = paste(i, "enrichment score")) +
+    theme_bw() +
+    # geom_text(aes(x = -0.3, y = .75, label = lm_eqn(lm(CIRC_Genes ~ Enrichment, work))), parse = T) +
+    # scale_color_manual(values = cbcols) +
+    geom_smooth(method = "lm", se = F) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(legend.position = "none") +
+    stat_cor()
+  filen <- paste0(i, ".pdf")
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf", path = "./Figures/Gene_Sets/Pearson",
+                   height = 6, width = 6)
+}
+
+# Enrichment for Subtype
 for(i in levels(Enrichments$Geneset)){
   print(i)
   work <- droplevels(subset(Enrichments, Geneset == i))
@@ -370,9 +443,9 @@ for(i in levels(Enrichments$Geneset)){
 
 ## Individual genes
 # how many pats
-kable(dcast(df1a, Subtype ~., length))
+kable(dcast(pat_sub, Subtype ~., length))
 
-MA <- merge(FPKM, df1a[, c("Patient.ID", "Subtype", "CIRC_Genes")], by = "Patient.ID")
+MA <- merge(FPKM, pat_sub[, c("Patient.ID", "Subtype", "CIRC_Genes")], by = "Patient.ID")
 genes_of_interest <- c("IL6", "IL1B", "IL23A", "TGFB1",
                        "CCL2", "CCL5", "CXCL10", "CCL20",
                        "CCR6", "TLR4", "TLR2", "CIITA",
