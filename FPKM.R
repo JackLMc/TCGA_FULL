@@ -149,18 +149,34 @@ ggplot(CIRC_clin, aes(x = MSI_STATUS, y = CIRC_Genes)) +
 ##### Analysing variance differences ####
 # Levene-test (analysis of variance)
 CIRC_clin$MSI_STATUS <- as.factor(CIRC_clin$MSI_STATUS)
-car:: leveneTest(CIRC_clin$CIRC_Genes, group = CIRC_clin$MSI_STATUS, center = "median")
+# car:: leveneTest(CIRC_clin$CIRC_Genes, group = CIRC_clin$MSI_STATUS, center = "median") # Assumes normality
+
 # var.test(CIRC_Genes ~ MSI_STATUS, data = CIRC_clin)
-fligner.test(CIRC_clin$CIRC_Genes, g = CIRC_clin$MSI_STATUS)
-bartlett.test(CIRC_clin$CIRC_Genes, g = CIRC_clin$MSI_STATUS)
+flig_test <- fligner.test(CIRC_clin$CIRC_Genes, g = CIRC_clin$MSI_STATUS)$p.value
+
+Test <- cbind("Fligner Test",
+              round(flig_test, 6)) %>% as.data.frame()
+colnames(Test) <- c("Method", "P Value")
+rownames(Test) <- NULL
+
+# bartlett.test(CIRC_clin$CIRC_Genes, g = CIRC_clin$MSI_STATUS) # Assumes normality
 
 # Coefficient of variance
 # install_github("benmarwick/cvequality")
 library(cvequality)
-cv_test <- with(CIRC_clin, asymptotic_test(CIRC_Genes, MSI_STATUS))
-cv_test_MSLRT <- with(CIRC_clin, mslr_test(nr = 1e4, CIRC_Genes, MSI_STATUS))
+cv_test <- with(CIRC_clin, asymptotic_test(CIRC_Genes, MSI_STATUS)) # unequal sample sizes
+# cv_test_MSLRT <- with(CIRC_clin, mslr_test(nr = 1e4, CIRC_Genes, MSI_STATUS)) # Equal sample sizes
+asym <- cbind("Asymptotic Test", round(cv_test$p_value, 4))
+colnames(asym) <- c("Method", "P Value")
 
-## ALL MEASURES ARE HIGHLY SIGNIFICANT.
+library(knitr)
+library(kableExtra)
+library(magrittr)
+rbind(Test, asym)
+
+# kable_out <- knitr::kable(rbind(Test, asym), "html") %>% kableExtra::kable_styling(bootstrap_options = c("striped", "hover"))%>%
+#   kable_styling()
+# readr::write_file(kable_out, "kable_out.html")
 
 #### Clustering ####
 # Partitioning clustering
@@ -203,15 +219,6 @@ prin_comp <- prcomp(df, scale. = T)
 ### kmeans
 # Kcluster <- a[, "kmeans_Clusters"]
 library(ggbiplot)
-# pdf("./Figures/Clustering/Kmeans_CIRC.pdf", height = 6, width = 6)
-# ggbiplot(prin_comp, obs.scale = 1, var.scale = 1, 
-#          groups = Kcluster, circle = T, var.axes = F) +
-#   theme_bw() +
-#   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-#   theme(legend.direction = "horizontal", legend.position = "top") +
-#   ylim (-10,10)
-# dev.off()
-
 ### Phenograph
 Pcluster <- a[, "Phenograph_Clusters"]
 pdf("./Figures/Clustering/PhenoG_CIRC.pdf", height = 6, width = 6)
@@ -230,6 +237,8 @@ tsne_out <- Rtsne(as.matrix(df))
 tsne_dimensions <- as.data.frame(tsne_out$Y)
 colnames(tsne_dimensions) <- c("Dim1", "Dim2")
 
+head(tsne_dimensions)
+
 ## tSNE plot - looks the same as PCA just on a different axis
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 # pdf("./Figures/Clustering/CIRC_PhenoGraph_tsNE.pdf")
@@ -243,6 +252,27 @@ ggplot(tsne_dimensions, aes(x = Dim1, y = Dim2, colour = Pcluster)) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
   theme(legend.direction = "horizontal", legend.position = "top")
 dev.off()
+
+for_CIRC <- Enrichment_CIRC1[Enrichment_CIRC1$Patient.ID %in% rownames(df), ]
+CIRC_score <- for_CIRC[, "CIRC_Genes"]
+
+pdf("./Figures/Clustering/CIRC_Score_tsNE.pdf")
+ggplot(tsne_dimensions, aes(x = Dim1, y = Dim2, colour = CIRC_score)) +
+  geom_point(size = 4, alpha = 0.8, pch = 20) +
+  # scale_colour_manual(values = c("1" = "#009E73", "2" = "#56B4E9", "3" = "#E69F00",
+  #                                "4" = "#CC79A7", "5" = "#0072B2", "6" = "#999999",
+  #                                "7" = "#F0E442", "8" = "#D55E00")) +
+  theme_bw() +
+  theme(axis.text = element_text(size = 16)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.direction = "horizontal", legend.position = "top") +
+  scale_colour_gradient(low = "#E3E3E3", high = "#413CFF",
+                     space = "Lab", na.value = "grey50", guide = "colourbar",
+                     aesthetics = "colour")
+dev.off()
+
+
+
 
 #### Count patients + produce tables (nice) ####
 library(knitr)
@@ -325,8 +355,8 @@ ggplot(df1a, aes(x = Subtype, y = CIRC_Genes)) +
 #### WRITE OUT THE hiCIRC PATIENT SUBTYPES ####
 write.csv("./Output/Patient_Subtypes.csv", x = df1a[, c("Patient.ID", "CIRC_Genes", "Subtype")], row.names = F)
 pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
-
-
+library(reshape2)
+dcast(pat_sub, Subtype ~.)
 
 ##### GENESETS #####
 # Ping
