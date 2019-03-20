@@ -353,8 +353,9 @@ ggplot(df1a, aes(x = Subtype, y = CIRC_Genes)) +
 
 
 #### WRITE OUT THE hiCIRC PATIENT SUBTYPES ####
-load("FPKMs.RData")
 write.csv("./Output/Patient_Subtypes.csv", x = df1a[, c("Patient.ID", "CIRC_Genes", "Subtype")], row.names = F)
+
+load("FPKMs.RData")
 pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
 library(reshape2)
 dcast(pat_sub, Subtype ~.)
@@ -363,13 +364,31 @@ dcast(pat_sub, Subtype ~.)
 # Bact
 rm(book1)
 book_list <- list()
-book_list[["Cell_bact"]] <- c("FCAR", "IGHA1")
+
+FPKM2$SYMBOL[grepl("JNK", FPKM2$SYMBOL)]
 
 
+book_list[["SAAs"]] <- c("TLR4", "LY96"#,
+                         #"TIRAP"#, "MYD88"
+                         # ,"IRAK4", "IRAK1",
+                         # "TAB1", "TAB2", "MAP3K7",
+                         # "MAP2K3", "MAP2K6", "MAP2K4", "MAP2K7",
+                         # "MAPK14", "MAPK8"
+                         )
+
+## ROS
+ROS <- read.csv("~/Downloads/GO_term_summary_20190320_151206.csv")
+head(ROS)
+
+ROS1 <- droplevels(subset(ROS, Annotated.Term == "cellular response to reactive oxygen species"))
+
+ROS_list <- list()
+ROS_list[["ROS"]] <- toupper(levels(ROS1$Symbol))
+head(ROS_list)
 # try <- FPKM2[FPKM2$SYMBOL %in% book1$SYMBOL, ]
 
 library(GSVA)
-Enrichment_book <- gsva(FPKM3, book_list)
+Enrichment_book <- gsva(FPKM3, ROS_list)
 Enrichment_book1 <- Enrichment_book %>% as.data.frame() %>%
   rownames_to_column(., var = "Geneset") %>%
   gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
@@ -381,19 +400,20 @@ Enrich <- merge(pat_sub, Enrichment_book1, by = "Patient.ID")
 Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -CIRC_Genes, -Patient.ID, -Subtype)
 Enrich1$Parameter <- as.factor(Enrich1$Parameter)
 
+pdf("./Figures/Gene_Sets/ROS_response.pdf")
 ggplot(Enrich1, aes(x = Subtype, y = Enrichment)) +
   geom_boxplot(alpha = 0.5, width = 0.2) + 
   geom_violin(aes(Subtype, fill = Subtype),
               scale = "width", alpha = 0.8) +
   scale_fill_manual(values = cbcols) +
-  labs(x = "MSI Status", y = paste("enrichment score")) +
+  labs(x = "MSI Status", y = "Enrichment of GO Pathway 0034614 (cellular response to ROS))") +
   theme_bw() +
   theme(axis.text = element_text(size = 16)) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
   theme(legend.direction = "horizontal", legend.position = "top") + 
   stat_compare_means(comparisons = my_comparisons,
                      label = "p.signif", method = "wilcox.test")
-
+dev.off()
 
 # Ping
 Ping <- read.csv("./Exploratory_Data/Genesets/Ping_Chih_Ho.csv")
@@ -570,6 +590,22 @@ for(i in 1:length(genes_of_interest)){
   ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
                    path = "./Figures/Genes_of_interest",
                    height = 6, width = 6)}
+
+FPKM2$SYMBOL[grepl("CIAP", FPKM2$SYMBOL)]
+GOI <- droplevels(subset(MA, SYMBOL == "LY96"))
+GOI$Rank <- rank(GOI$FPKM)
+ggplot(GOI, aes(x = Subtype, y = Rank)) +
+  geom_boxplot(alpha = 0.5, width = 0.2) + 
+  geom_violin(aes(Subtype, fill = Subtype),
+              scale = "width", alpha = 0.8) +
+  scale_fill_manual(values = cbcols) +
+  labs(x = "MSI Status", y = paste("Rank transformed", "FPKM", sep = " ")) +
+  theme_bw() +
+  theme(axis.text = element_text(size = 16)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.direction = "horizontal", legend.position = "top") + 
+  stat_compare_means(comparisons = my_comparisons,
+                     label = "p.signif", method = "wilcox.test")
 
 
                 
