@@ -255,9 +255,11 @@ muta3 <- subsetMaf(muta, tsb = patients3, isTCGA = T, mafObj = T)
 
 
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-geneCloud(muta1, minMut = no_pats, top = 20, col = cbPalette)
-geneCloud(muta2, minMut = no_pats, top = 20, col = cbPalette)
-geneCloud(muta3, minMut = no_pats, top = 20, col = cbPalette)
+geneCloud(muta1, minMut = no_pats, top = 5, col = cbPalette)
+geneCloud(muta2, minMut = no_pats, top = 5, col = cbPalette)
+geneCloud(muta3, minMut = no_pats, top = 5, col = cbPalette)
+
+save.image("Mutations.RData")
 
 ## Pick from geneCloud plot - clustered mutations?
 lollipopPlot(muta1, gene = "APC")
