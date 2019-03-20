@@ -27,11 +27,9 @@ CIRC_genes <- droplevels(subset(CIRC_IG, CIRC == T)) %>%
 FPKM2$CIRC <- ifelse(
   (FPKM2$SYMBOL %in% CIRC_genes), T, F)
 doCIRC <- droplevels(subset(FPKM2, CIRC == T))
-head(FPKM2)
+
 #### Process to get in format for PCA ####
 # Remove uneeded stuff
-
-
 pca1 <- doCIRC %>% gather(contains("TCGA"), key = "Patient.ID", value = "FPKM") %>%
   dplyr:: select(matches("Patient.ID"), matches("SYMBOL"), matches("FPKM")) %>%
   spread(key = "SYMBOL", value = "FPKM") %>% 
@@ -48,16 +46,16 @@ prin_comp <- prcomp(pca4[, !'%in%'(names(pca4), c("Subtype", "CIRC_Genes"))], sc
 Subtype <- pca4[, "Subtype"]
 library(ggbiplot)
 
-pdf("./Figures/Contribution_ClassII/PCA_of_CIRC_Gene_List_MSS.pdf", height = 6, width = 6)
-ggbiplot(prin_comp, obs.scale = 1, var.scale = 1, groups = Subtype,
-         ellipse = T, circle = T, var.axes = F) +
-  theme_bw() +
-  theme(legend.direction = "horizontal", legend.position = "top") +
-  #ylim(-5, 5) +
-  scale_colour_manual(values = cbcols) +
-  theme(axis.text = element_text(size = 16)) +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
-dev.off()
+# pdf("./Figures/Contribution_ClassII/PCA_of_CIRC_Gene_List_MSS.pdf", height = 6, width = 6)
+# ggbiplot(prin_comp, obs.scale = 1, var.scale = 1, groups = Subtype,
+#          ellipse = T, circle = T, var.axes = F) +
+#   theme_bw() +
+#   theme(legend.direction = "horizontal", legend.position = "top") +
+#   #ylim(-5, 5) +
+#   scale_colour_manual(values = cbcols) +
+#   theme(axis.text = element_text(size = 16)) +
+#   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+# dev.off()
 
 
 # Rtsne
@@ -332,7 +330,7 @@ bet_model1 <- glm(formula = Subtype ~ CXCL10 + HAVCR2 + HLA.DPA1 + HLA.DRA +
       HLA.DRB5 + ICAM1 + LAG3 + PDCD1LG2, family = binomial(link = "logit"), 
     data = my_data, control = list(maxit = 50))
 stepAIC(bet_model1)
-
+summary(bet_model1)
 test_model<- glm(formula = Subtype ~  HLA.DPA1 + HLA.DPB1 + HLA.DQA1 + HLA.DQA2 + HLA.DRA + HLA.DRB5, family = binomial(link = "logit"), 
                  data = my_data)
 stepAIC(test_model)
