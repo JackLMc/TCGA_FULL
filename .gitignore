@@ -20,6 +20,7 @@ Old_attempts/
 Documents/
 Copies/
 Vectra_representative/
+Paper_Ready_Figs/
 
 ## Genome Stuff
 hgenome.00.b.array
@@ -37,3 +38,5 @@ hgenome.reads
 *.Rmd
 *.md
 *.xlsx
+*.rda
+*.html
