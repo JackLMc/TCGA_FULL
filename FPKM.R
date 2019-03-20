@@ -353,12 +353,48 @@ ggplot(df1a, aes(x = Subtype, y = CIRC_Genes)) +
 
 
 #### WRITE OUT THE hiCIRC PATIENT SUBTYPES ####
+load("FPKMs.RData")
 write.csv("./Output/Patient_Subtypes.csv", x = df1a[, c("Patient.ID", "CIRC_Genes", "Subtype")], row.names = F)
 pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
 library(reshape2)
 dcast(pat_sub, Subtype ~.)
 
 ##### GENESETS #####
+# Bact
+rm(book1)
+book_list <- list()
+book_list[["Cell_bact"]] <- c("FCAR", "IGHA1")
+
+
+# try <- FPKM2[FPKM2$SYMBOL %in% book1$SYMBOL, ]
+
+library(GSVA)
+Enrichment_book <- gsva(FPKM3, book_list)
+Enrichment_book1 <- Enrichment_book %>% as.data.frame() %>%
+  rownames_to_column(., var = "Geneset") %>%
+  gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
+  spread(., key = "Geneset", value = "Enrich")
+
+Enrichment_book1$Patient.ID <- as.factor(Enrichment_book1$Patient.ID)
+Enrich <- merge(pat_sub, Enrichment_book1, by = "Patient.ID")
+
+Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -CIRC_Genes, -Patient.ID, -Subtype)
+Enrich1$Parameter <- as.factor(Enrich1$Parameter)
+
+ggplot(Enrich1, aes(x = Subtype, y = Enrichment)) +
+  geom_boxplot(alpha = 0.5, width = 0.2) + 
+  geom_violin(aes(Subtype, fill = Subtype),
+              scale = "width", alpha = 0.8) +
+  scale_fill_manual(values = cbcols) +
+  labs(x = "MSI Status", y = paste("enrichment score")) +
+  theme_bw() +
+  theme(axis.text = element_text(size = 16)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.direction = "horizontal", legend.position = "top") + 
+  stat_compare_means(comparisons = my_comparisons,
+                     label = "p.signif", method = "wilcox.test")
+
+
 # Ping
 Ping <- read.csv("./Exploratory_Data/Genesets/Ping_Chih_Ho.csv")
 
@@ -480,7 +516,7 @@ genes_of_interest <- c("IL6", "IL1B", "IL23A", "TGFB1",
                        "CCL2", "CCL5", "CXCL10", "CCL20",
                        "CCR6", "TLR4", "TLR2", "CIITA",
                        "RORC", "IL17A", "IL23R",
-                       "CDC42")
+                       "CDC42", "FCAR", "IGHA1")
 
 GOI <- droplevels(MA[MA$SYMBOL %in% genes_of_interest, ]) %>%
   .[, c("Patient.ID", "SYMBOL", "FPKM", "Subtype", "CIRC_Genes")]
