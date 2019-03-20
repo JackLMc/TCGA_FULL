@@ -7,8 +7,7 @@ my_comparisons <- list(c("MSS-hiCIRC", "MSI-H"),
                        c("MSI-H", "MSS"))
 cbcols <- c("MSS-hiCIRC" = "#999999",
             "MSI-H" = "#56B4E9",
-            "MSS" = "#009E73",
-            "MSI-L" = "#E69F00")
+            "MSS" = "#009E73")
 
 # Looking for the files
 thousand.folders <- list.dirs(path = "./Data/Counts", full.names = T)
@@ -123,7 +122,7 @@ table(rowSums(x$counts==0)==10) # Show me the amount of transcripts that are zer
 CPM_scaling <- min(x$samples$lib.size)/1000000
 cpm_scale <- 6.5/CPM_scaling
 
-keep.exprs <- rowSums(cpm>cpm_scale)>=2 # Genes must have a cpm above 0.44 (count of 6.5 in lowest library) and be expressed in at least 2 groups (1 population)
+keep.exprs <- rowSums(cpm>cpm_scale)>=1 # Genes must have a cpm above 0.44 (count of 6.5 in lowest library) and be expressed in at least 2 groups (1 population)
 x <- x[keep.exprs,, keep.lib.sizes = F]
 
 # Normalising gene expression
@@ -184,7 +183,7 @@ col.cell1 <- c("#999999","#56B4E9","#E69F00")[x$samples$group]
 #           labRow = highly_variable_lcpm_sym$SYMBOL,
 #           hclustfun = hclustAvg,
 #           ColSideColors = col.cell1)
-# 
+
 
 
 
@@ -216,8 +215,8 @@ efit <- eBayes(vfit, robust = T)
 summary(decideTests(efit))
 
 ### More stringently selected DE genes
-# tfit <- treat(vfit, lfc = 0.2)
-# summary(decideTests(tfit))
+tfit <- treat(vfit, lfc = 0.1)
+summary(decideTests(tfit))
 
 dt <- decideTests(efit)
 # summary(dt)
@@ -236,7 +235,10 @@ Symbol_MSI_hiCIRC <- efit$genes$SYMBOL[MSS_hiCIRC_MSI]
 Symbol_MSI_hiCIRC[grepl("ROR", Symbol_MSI_hiCIRC)]
 Symbol_MSI_hiCIRC[grepl("IL17", Symbol_MSI_hiCIRC)]
 Symbol_MSI_hiCIRC[grepl("CCL", Symbol_MSI_hiCIRC)]
-# Symbol_MSI_hiCIRC[grepl("CCR", Symbol_MSI_hiCIRC)]
+Symbol_MSI_hiCIRC[grepl("IL", Symbol_MSI_hiCIRC)]
+Symbol_MSI_hiCIRC[grepl("CCR", Symbol_MSI_hiCIRC)]
+Symbol_MSI_hiCIRC[grepl("TLR", Symbol_MSI_hiCIRC)]
+Symbol_MSI_hiCIRC[grepl("MUC", Symbol_MSI_hiCIRC)]
 
 # i <- which(v$genes$ENSEMBL %in% Symbol_MSI)
 # mycol <- colorpanel(1000,"blue","white","red")
@@ -257,8 +259,12 @@ MSS_hiCIRC.vs.MSS <- topTreat(efit, coef = 3, n = Inf)
 myData <- as.data.frame(MSI_H.vs.MSS_hiCIRC)
 myData$padjThresh <- as.factor(myData$adj.P.Val < 0.05)
 
+take_a_look <- myData[myData$adj.P.Val <= 0.01, ]
+View(myData)
+
+
 myData$Labels <- myData$SYMBOL
-labelled_genes <- c("RORC")
+labelled_genes <- c("RORC", "TLR4", "CCR6")
 myData$Labels[!myData$SYMBOL %in% labelled_genes] <- ""
 library(ggrepel)
 
@@ -351,19 +357,19 @@ hallmark_gmt <- read.gmt("./Data/Genesets/h.all.v6.2.entrez.gmt")
 # filter_gmt <- All_gmt[names(All_gmt) %in% names(GO_gmt)]
 
 ## Filter genesets for very small/very big sizes (reduces multiple comparison deficit) (4326 genesets)
-geneset_sizes <- unlist(lapply(hallmark_gmt, length))
+geneset_sizes <- unlist(lapply(GO_gmt, length))
 geneset_indices <- which(geneset_sizes>=15 & geneset_sizes<200)
-filtered_set <- hallmark_gmt[geneset_indices]
+filtered_set <- GO_gmt[geneset_indices]
 
 
 ## Perform camera analysis on filtered geneset
 specific_genes <- v$genes[v$genes$ENSEMBL %in% rownames(v), ]
 idx <- ids2indices(filtered_set, id = specific_genes$ENTREZID)
 
-camera_results <- camera(v, idx, design, contrast = contr.matrix[, "MSI_HvsMSS_hiCIRC"])
+camera_results <- camera(v, idx, design, contrast = contr.matrix[, "MSI_HvsMSS"])
 head(camera_results)
 View(camera_results)
-droplevels(subset(camera_results, FDR <= 0.01))
+droplevels(subset(camera_results, PValue <= 0.01))
 
 
 # BiocManager::install("qusage")
