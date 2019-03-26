@@ -234,20 +234,19 @@ library(tidyverse)
 muta <- read.maf("./Data/Mutations/mc3.v0.2.8.PUBLIC.maf", verbose = F, isTCGA = T)
 
 pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
+pat_sub$Patient.ID <- gsub("\\.", "-", pat_sub$Patient.ID) %>% as.factor()
+
 pat_sub1 <- droplevels(subset(pat_sub, Subtype == "MSS-hiCIRC"))
 pat_sub2 <- droplevels(subset(pat_sub, Subtype == "MSS"))
 pat_sub3 <- droplevels(subset(pat_sub, Subtype == "MSI-H"))
 
-no_pats1 <- round(0.75 * nlevels(pat_sub1$Patient.ID))
-no_pats2 <- round(0.75 * nlevels(pat_sub2$Patient.ID))
-no_pats3 <- round(0.75 * nlevels(pat_sub3$Patient.ID))
+no_pats1 <- round(0.5 * nlevels(pat_sub1$Patient.ID))
+no_pats2 <- round(0.5 * nlevels(pat_sub2$Patient.ID))
+no_pats3 <- round(0.5 * nlevels(pat_sub3$Patient.ID))
 
 patients1 <- levels(pat_sub1$Patient.ID)
-patients1 <- gsub("\\.", "-", patients1)
 patients2 <- levels(pat_sub2$Patient.ID)
-patients2 <- gsub("\\.", "-", patients2)
 patients3 <- levels(pat_sub3$Patient.ID)
-patients3 <- gsub("\\.", "-", patients3)
 
 muta1 <- subsetMaf(muta, tsb = patients1, isTCGA = T, mafObj = T)
 muta2 <- subsetMaf(muta, tsb = patients2, isTCGA = T, mafObj = T)
@@ -255,12 +254,21 @@ muta3 <- subsetMaf(muta, tsb = patients3, isTCGA = T, mafObj = T)
 
 
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-geneCloud(muta1, minMut = no_pats, top = 5, col = cbPalette)
-geneCloud(muta2, minMut = no_pats, top = 5, col = cbPalette)
-geneCloud(muta3, minMut = no_pats, top = 5, col = cbPalette)
+set.seed(1)
+pdf("./Figures/Mutation/Recurrent/hiCIRC_muts.pdf")
+geneCloud(muta1, minMut = 48, random.order = F)
+dev.off()
+
+pdf("./Figures/Mutation/Recurrent/MSS_muts.pdf")
+geneCloud(muta2, minMut = 216, random.order = F)
+dev.off()
+
+pdf("./Figures/Mutation/Recurrent/MSI_muts.pdf")
+geneCloud(muta3, minMut = 44, random.order = F)
+dev.off()
 
 save.image("Mutations.RData")
-
+load("./Mutations.RData")
 ## Pick from geneCloud plot - clustered mutations?
 lollipopPlot(muta1, gene = "APC")
 lollipopPlot(muta2, gene = "APC")
@@ -311,3 +319,45 @@ head(laml.sig)
 
 
 plotOncodrive(res = laml.sig, fdrCutOff = 0.1, useFraction = TRUE)
+
+
+
+
+
+
+
+
+
+
+fit__ <- sigs_nmf@fitted %>% as.data.frame()
+
+this <- rownames_to_column(fit__, var  = "change")
+
+head(this)
+
+
+ahip <- this[grepl("TG", this$change),]
+head(ahip)[1:5]
+aho <- colSums(ahip[,!'%in%'(colnames(ahip), "change") ]) %>% as.data.frame()
+
+ah <- gather(aho, contains("TCGA"), key = "Patient.ID", value = "percent") %>% rownames_to_column(., var = "Patient.ID")
+
+colnames(ah) <- c("Patient.ID", "percent")
+
+
+that <- merge(ah, pat_sub, by = "Patient.ID")
+
+
+ggplot(that, aes(x = Subtype, y = percent)) +
+  geom_boxplot(alpha = 0.5, width = 0.2) + 
+  geom_violin(aes(Subtype, fill = Subtype),
+              scale = "width", alpha = 0.8) +
+  scale_fill_manual(values = cbcols) +
+  labs(x = "MSI Status", y = paste("Rank transformed", "FPKM", sep = " ")) +
+  theme_bw() +
+  theme(axis.text = element_text(size = 16)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.direction = "horizontal", legend.position = "top") + 
+  stat_compare_means(comparisons = my_comparisons,
+                     label = "p.signif", method = "wilcox.test")
+
