@@ -407,7 +407,7 @@ dev.off()
 
 
 ## ROS
-ROS <- read.csv("~/Downloads/GO_term_summary_20190320_151206.csv")
+ROS <- read.csv("./Exploratory_Data/Genesets/GO_term_summary_20190320_151206.csv")
 
 ROS_list <- list()
 c <- 1

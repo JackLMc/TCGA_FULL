@@ -1,4 +1,4 @@
-# Stomach
+# Pancreas
 pap_clin <- read.csv("./Data/Clinical_data/Paper_Clinical.csv")
 library(UsefulFunctions)
 library(tidyverse)
@@ -8,11 +8,11 @@ my_comparisons <- list(c("MSS-hiCIRC", "MSI-H"),
                        c("MSS-hiCIRC", "MSS"),
                        c("MSI-H", "MSS"))
 
-cbcols <- c("MSS-hiCIRC" = "#999999",
-            "MSI-H" = "#56B4E9",
+cbcols <- c("hiCIRC" = "#999999",
+            "loCIRC" = "#56B4E9",
             "MSS" = "#009E73",
             "MSI-L" = "#E69F00")
-
+head(pap_clin)
 # source("Clinical.R") # Run to gain the clinical dataframe that's in Output (Clin_PAAD)
 # load("FPKMs.RData")
 
@@ -36,8 +36,8 @@ names(lists) <- gsub("./PAAD/Data/FPKM/", "", names(lists))
 
 
 # Patients I have CIRC scores and microsatellite status for.
-# pat_sub <- read.csv("./Data/Important/patient_subtypes.csv")
-converter <- read.delim("./PAAD/gdc_sample_sheet.2019-03-21.tsv")
+# pat_sub <- read.csv("./Data/Important/patient_CIRC_Stats.csv")
+converter <- read.delim("./PAAD/gdc_sample_sheet.2019-03-22.tsv")
 converter$Patient.ID <- gsub("-", ".", converter$Case.ID)
 # converter1 <- converter[converter$Patient.ID %in% pat_sub$Patient.ID, ]
 converter$File.Name <- gsub(".FPKM.txt.gz", "", converter$File.Name)
@@ -131,60 +131,57 @@ Enrichment_CIRC1$Patient.ID <- as.factor(Enrichment_CIRC1$Patient.ID)
 
 ########## START ##########
 ##### Get the Clinical Stuff in ####
-Clin_PAAD <- pap_clin[, c("TCGA.ID", "Microsatellite.instability") ]
+head(pap_clin)
+Clin_PAAD <- pap_clin[, c("TCGA.ID", "Number.of.somatic.mutation")]
 Clin_PAAD$Patient.ID <- samptopat(pap_clin$TCGA.ID)
 Clin_PAAD$Patient.ID <- gsub("-", ".", Clin_PAAD$Patient.ID)
-Clin_PAAD <- Clin_PAAD[!is.na(Clin_PAAD$Microsatellite.instability),]
-
-Clin_PAAD$MSI_STATUS <- ifelse((Clin_PAAD$Microsatellite.instability == "MSI-H"), "MSI-H", "MSS")
-
 
 CIRC_clin <- merge(Enrichment_CIRC1, Clin_PAAD, by = "Patient.ID")
 
 
 
 # pdf("./PAAD/Figures/Clustering/Violin Plot of Mean CIRC.pdf", height = 6, width = 6)
-ggplot(CIRC_clin, aes(x = MSI_STATUS, y = CIRC_Genes)) +
-  geom_boxplot(alpha = 0.5, width = 0.2) +
-  geom_violin(aes(MSI_STATUS, fill = MSI_STATUS),
-              scale = "width", alpha = 0.8) +
-  scale_fill_manual(values = cbcols) +
-  labs(x = "MSI Status", y = "CIRC Enrichment Score") +
-  theme_bw() +
-  theme(axis.text = element_text(size = 16)) +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-  theme(legend.direction = "horizontal", legend.position = "top") +
-  stat_compare_means(comparisons = list((c("MSI-H", "MSS"))),
-                     label = "p.signif", method = "wilcox.test")
+# ggplot(CIRC_clin, aes(x = MSI_STATUS, y = CIRC_Genes)) +
+#   geom_boxplot(alpha = 0.5, width = 0.2) +
+#   geom_violin(aes(MSI_STATUS, fill = MSI_STATUS),
+#               scale = "width", alpha = 0.8) +
+#   scale_fill_manual(values = cbcols) +
+#   labs(x = "MSI Status", y = "CIRC Enrichment Score") +
+#   theme_bw() +
+#   theme(axis.text = element_text(size = 16)) +
+#   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+#   theme(legend.direction = "horizontal", legend.position = "top") +
+#   stat_compare_means(comparisons = list((c("MSI-H", "MSS"))),
+#                      label = "p.signif", method = "wilcox.test")
 # dev.off()
 
 ##### Analysing variance differences ####
 # Levene-test (analysis of variance)
-CIRC_clin$MSI_STATUS <- as.factor(CIRC_clin$MSI_STATUS)
-# car:: leveneTest(CIRC_clin$CIRC_Genes, group = CIRC_clin$MSI_STATUS, center = "median") # Assumes normality
-
-# var.test(CIRC_Genes ~ MSI_STATUS, data = CIRC_clin)
-flig_test <- fligner.test(CIRC_clin$CIRC_Genes, g = CIRC_clin$MSI_STATUS)$p.value
-
-Test <- cbind("Fligner Test",
-              round(flig_test, 6)) %>% as.data.frame()
-colnames(Test) <- c("Method", "P Value")
-rownames(Test) <- NULL
-
-# bartlett.test(CIRC_clin$CIRC_Genes, g = CIRC_clin$MSI_STATUS) # Assumes normality
-
-# Coefficient of variance
-# install_github("benmarwick/cvequality")
-library(cvequality)
-cv_test <- with(CIRC_clin, asymptotic_test(CIRC_Genes, MSI_STATUS)) # unequal sample sizes
-# cv_test_MSLRT <- with(CIRC_clin, mslr_test(nr = 1e4, CIRC_Genes, MSI_STATUS)) # Equal sample sizes
-asym <- cbind("Asymptotic Test", round(cv_test$p_value, 4))
-colnames(asym) <- c("Method", "P Value")
-
-library(knitr)
-library(kableExtra)
-library(magrittr)
-rbind(Test, asym)
+# CIRC_clin$MSI_STATUS <- as.factor(CIRC_clin$MSI_STATUS)
+# # car:: leveneTest(CIRC_clin$CIRC_Genes, group = CIRC_clin$MSI_STATUS, center = "median") # Assumes normality
+# 
+# # var.test(CIRC_Genes ~ MSI_STATUS, data = CIRC_clin)
+# flig_test <- fligner.test(CIRC_clin$CIRC_Genes, g = CIRC_clin$MSI_STATUS)$p.value
+# 
+# Test <- cbind("Fligner Test",
+#               round(flig_test, 6)) %>% as.data.frame()
+# colnames(Test) <- c("Method", "P Value")
+# rownames(Test) <- NULL
+# 
+# # bartlett.test(CIRC_clin$CIRC_Genes, g = CIRC_clin$MSI_STATUS) # Assumes normality
+# 
+# # Coefficient of variance
+# # install_github("benmarwick/cvequality")
+# library(cvequality)
+# cv_test <- with(CIRC_clin, asymptotic_test(CIRC_Genes, MSI_STATUS)) # unequal sample sizes
+# # cv_test_MSLRT <- with(CIRC_clin, mslr_test(nr = 1e4, CIRC_Genes, MSI_STATUS)) # Equal sample sizes
+# asym <- cbind("Asymptotic Test", round(cv_test$p_value, 4))
+# colnames(asym) <- c("Method", "P Value")
+# 
+# library(knitr)
+# library(kableExtra)
+# library(magrittr)
+# rbind(Test, asym)
 
 # kable_out <- knitr::kable(rbind(Test, asym), "html") %>% kableExtra::kable_styling(bootstrap_options = c("striped", "hover"))%>%
 #   kable_styling()
@@ -204,7 +201,7 @@ my_data <- pca1 %>%
   #select(matches("HLA|MSI|Patient")) %>%
   na.omit()
 head(my_data)
-my_data <- my_data[, !'%in%'(colnames(my_data), c("TCGA.ID", "Microsatellite.instability")) ]
+my_data <- my_data[, !'%in%'(colnames(my_data), c("TCGA.ID", "Number.of.somatic.mutation")) ]
 
 ## Determine optimal number of clusters for kmeans
 library(factoextra)
@@ -216,7 +213,7 @@ dev.off()
 library(Rphenograph)
 set.seed(1)
 a <- cbind(my_data, Phenograph_Clusters = factor(Rphenograph(my_data[, !('%in%'(names(my_data), c("Patient.ID", "MSI_STATUS")))])[[2]]$membership), 
-           kmeans_Clusters = factor(kmeans(my_data[, !('%in%'(names(my_data), c("Patient.ID", "MSI_STATUS")))], 6)$cluster))
+           kmeans_Clusters = factor(kmeans(my_data[, !('%in%'(names(my_data), c("Patient.ID", "MSI_STATUS")))], 5)$cluster))
 
 # Calculate PCs
 pca1a <- data.frame(a[, names(a) != "MSI_STATUS" & 
@@ -236,7 +233,7 @@ prin_comp <- prcomp(df, scale. = T)
 library(ggbiplot)
 ### Phenograph
 Pcluster <- a[, "Phenograph_Clusters"]
-# pdf("./PAAD/Figures/Clustering/PhenoG_CIRC.pdf", height = 6, width = 6)
+pdf("./PAAD/Figures/PhenoG_CIRC.pdf", height = 6, width = 6)
 ggbiplot(prin_comp, obs.scale = 1, var.scale = 1, 
          groups = Pcluster, circle = T, var.axes = F) +
   theme_bw() +
@@ -256,12 +253,11 @@ head(tsne_dimensions)
 
 ## tSNE plot - looks the same as PCA just on a different axis
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-# pdf("./PAAD/Figures/Clustering/CIRC_PhenoGraph_tsNE.pdf")
+pdf("./PAAD/Figures/CIRC_PhenoGraph_tsNE.pdf")
 ggplot(tsne_dimensions, aes(x = Dim1, y = Dim2, colour = Pcluster)) +
   geom_point(size = 4, alpha = 0.8, pch = 20) +
   scale_colour_manual(values = c("1" = "#009E73", "2" = "#56B4E9", "3" = "#E69F00",
-                                 "4" = "#CC79A7", "5" = "#0072B2", "6" = "#999999",
-                                 "7" = "#F0E442", "8" = "#D55E00")) +
+                                 "4" = "#CC79A7", "5" = "#0072B2")) +
   theme_bw() +
   theme(axis.text = element_text(size = 16)) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
@@ -271,7 +267,7 @@ dev.off()
 for_CIRC <- Enrichment_CIRC1[Enrichment_CIRC1$Patient.ID %in% rownames(df), ]
 CIRC_score <- for_CIRC[, "CIRC_Genes"]
 
-# pdf("./PAAD/Figures/Clustering/CIRC_Score_tsNE.pdf")
+pdf("./PAAD/Figures/CIRC_Score_tsNE.pdf")
 ggplot(tsne_dimensions, aes(x = Dim1, y = Dim2, colour = CIRC_score)) +
   geom_point(size = 4, alpha = 0.8, pch = 20) +
   # scale_colour_manual(values = c("1" = "#009E73", "2" = "#56B4E9", "3" = "#E69F00",
@@ -294,17 +290,13 @@ library(knitr)
 # install.packages("rmarkdown")
 # library("rmarkdown")
 
-kable(dcast(a, MSI_STATUS ~ Phenograph_Clusters, length), caption = "Phenograph clusters")
-head(tsne_out)
-
 #### Calculate CIRC Expression for cluster ####
-j <- a[, c("Patient.ID", "kmeans_Clusters", "Phenograph_Clusters", "MSI_STATUS")]
+j <- a[, c("Patient.ID", "kmeans_Clusters", "Phenograph_Clusters")]
 df1a <- merge(Enrichment_CIRC1, j, by = "Patient.ID")
-df1 <- droplevels(subset(df1a, MSI_STATUS == "MSS"))
 
 # Phenograph
-# pdf("./PAAD/Figures/Clustering/CIRC_Pheno.pdf", height = 6, width = 6)
-ggplot(df1, aes(x = Phenograph_Clusters, y = CIRC_Genes)) +
+pdf("./PAAD/Figures/CIRC_Pheno.pdf", height = 6, width = 6)
+ggplot(df1a, aes(x = Phenograph_Clusters, y = CIRC_Genes)) +
   geom_boxplot(alpha = 0.5, width = 0.2) + 
   geom_violin(aes(Phenograph_Clusters, fill = Phenograph_Clusters),
               scale = "width", alpha = 0.8) +
@@ -316,9 +308,9 @@ ggplot(df1, aes(x = Phenograph_Clusters, y = CIRC_Genes)) +
   theme(axis.text = element_text(size = 16)) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
   theme(legend.direction = "horizontal", legend.position = "top") + 
-  stat_compare_means(comparisons = list(c("1", "2"), c("1", "3"), c("1", "4"), c("1", "5"), c("1", "6"), c("1", "7"), c("1", "8"),
-                                        c("2", "3"), c("2", "4"), c("2", "5"), c("2", "6"), c("2", "7"), c("2", "8"),
-                                        c("3", "4"), c("3", "5"), c("3", "6"), c("3", "7"), c("3", "8")
+  stat_compare_means(comparisons = list(c("1", "2"), c("1", "3"), c("1", "4"), c("1", "5"),
+                                        c("2", "3"), c("2", "4"),
+                                        c("3", "4"), c("3", "5")
                                         # c("4", "5"), c("4", "6"), c("4", "7"), c("4", "8"),
                                         # c("5", "6"), c("5", "7"), c("5", "8"),
                                         # c("6", "7"), c("6", "8"),
@@ -327,16 +319,14 @@ ggplot(df1, aes(x = Phenograph_Clusters, y = CIRC_Genes)) +
   label = "p.signif", method = "wilcox.test")
 dev.off()
 
-remove_low_CIRC <- df[tsne_dimensions$Dim1 <= (-5), ]
-lessthan <- rownames_to_column(remove_low_CIRC, var = "Patient.ID")
-lt <- merge(lessthan, Clin_PAAD, by = "Patient.ID")
-hiCIRC_pats <- droplevels(subset(lt, MSI_STATUS == "MSS"))$Patient.ID
 
-df1a$Subtype <- ifelse((df1a$Patient.ID %in% hiCIRC_pats), "MSS-hiCIRC", as.character(df1a$MSI_STATUS))
 
-ggplot(df1a, aes(x = Subtype, y = CIRC_Genes)) +
+# Take patients in cluster 1 as hiCIRC
+df1a$CIRC_Stat <- ifelse((df1a$Phenograph_Clusters == "1"), "hiCIRC", "loCIRC")
+
+ggplot(df1a, aes(x = CIRC_Stat, y = CIRC_Genes)) +
   geom_boxplot(alpha = 0.5, width = 0.2) +
-  geom_violin(aes(Subtype, fill = Subtype),
+  geom_violin(aes(CIRC_Stat, fill = CIRC_Stat),
               scale = "width", alpha = 0.8) +
   scale_fill_manual(values = cbcols) +
   labs(x = "MSI Status", y = "CIRC Enrichment Score") +
@@ -344,7 +334,7 @@ ggplot(df1a, aes(x = Subtype, y = CIRC_Genes)) +
   theme(axis.text = element_text(size = 16)) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
   theme(legend.direction = "horizontal", legend.position = "top") +
-  stat_compare_means(comparisons = my_comparisons,
+  stat_compare_means(comparisons = list(c("hiCIRC", "loCIRC")),
                      label = "p.signif", method = "wilcox.test")
 dev.off()
 # Hierarchical clustering
@@ -367,13 +357,14 @@ dev.off()
 #           RowSideColors = col.cell1)
 
 
-#### WRITE OUT THE hiCIRC PATIENT SUBTYPES ####
-write.csv("./Output/Patient_Subtypes.csv", x = df1a[, c("Patient.ID", "CIRC_Genes", "Subtype")], row.names = F)
+#### WRITE OUT THE hiCIRC PATIENT CIRC_StatS ####
+# write.csv("./Output/Patient_CIRC_Stats.csv", x = df1a[, c("Patient.ID", "CIRC_Genes", "CIRC_Stat")], row.names = F)
 
-load("FPKMs.RData")
-pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
+# load("FPKMs.RData")
+# pat_sub <- read.csv("./Output/Patient_CIRC_Stats.csv")
 library(reshape2)
-dcast(pat_sub, Subtype ~.)
+dcast(pat_sub, CIRC_Stat ~.)
+pat_sub <- df1a[, c("Patient.ID", "CIRC_Genes", "CIRC_Stat")]
 
 ##### GENESETS #####
 # Bact
@@ -391,14 +382,41 @@ book_list[["SAAs"]] <- c("TLR4", "LY96"#,
                          # "MAPK14", "MAPK8"
 )
 a_list <- list()
-a_list[["test"]] <- c("COX2", "PGE2", "EP4")
+a_list[["test"]] <- c("CEACAM1", "CEACAM16", "CEACAM18", "CEACAM19", "CEACAM20", "CEACAM21", "CEACAM22P", "CEACAM3",
+                      "CEACAM4", "CEACAM5", "CEACAM6", "CEACAM7", "CEACAM8")
+
+library(GSVA)
+Enrichment_book <- gsva(FPKM3, a_list)
+Enrichment_book1 <- Enrichment_book %>% as.data.frame() %>%
+  rownames_to_column(., var = "Geneset") %>%
+  gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
+  spread(., key = "Geneset", value = "Enrich")
+
+Enrichment_book1$Patient.ID <- as.factor(Enrichment_book1$Patient.ID)
+Enrich <- merge(df1a[, c("Patient.ID", "CIRC_Genes", "CIRC_Stat")], Enrichment_book1, by = "Patient.ID")
+
+Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -CIRC_Genes, -Patient.ID, -CIRC_Stat)
+Enrich1$Parameter <- as.factor(Enrich1$Parameter)
+
+pdf("./PAAD/Figures/CEACAM.pdf")
+ggplot(Enrich1, aes(x = CIRC_Stat, y = Enrichment)) +
+  geom_boxplot(alpha = 0.5, width = 0.2) + 
+  geom_violin(aes(CIRC_Stat, fill = CIRC_Stat),
+              scale = "width", alpha = 0.8) +
+  scale_fill_manual(values = cbcols) +
+  labs(x = "MSI Status", y = "Enrichment of GO Pathway 0034614 (cellular response to ROS))") +
+  theme_bw() +
+  theme(axis.text = element_text(size = 16)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.direction = "horizontal", legend.position = "top") + 
+  stat_compare_means(comparisons = list(c("hiCIRC", "loCIRC")),
+                     label = "p.signif", method = "wilcox.test")
+dev.off()
 
 
 ## ROS
-ROS <- read.csv("~/Downloads/GO_term_summary_20190320_151206.csv")
+ROS <- read.csv("./Exploratory_Data/Genesets/GO_term_summary_20190320_151206.csv")
 head(ROS)
-
-pat_sub <- df1a[, c("Patient.ID", "CIRC_Genes", "Subtype")]
 
 ROS1 <- droplevels(subset(ROS, Annotated.Term == "cellular response to reactive oxygen species"))
 
@@ -415,15 +433,15 @@ Enrichment_book1 <- Enrichment_book %>% as.data.frame() %>%
   spread(., key = "Geneset", value = "Enrich")
 
 Enrichment_book1$Patient.ID <- as.factor(Enrichment_book1$Patient.ID)
-Enrich <- merge(df1a[, c("Patient.ID", "CIRC_Genes", "Subtype")], Enrichment_book1, by = "Patient.ID")
+Enrich <- merge(df1a[, c("Patient.ID", "CIRC_Genes", "CIRC_Stat")], Enrichment_book1, by = "Patient.ID")
 
-Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -CIRC_Genes, -Patient.ID, -Subtype)
+Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -CIRC_Genes, -Patient.ID, -CIRC_Stat)
 Enrich1$Parameter <- as.factor(Enrich1$Parameter)
 
-# pdf("./PAAD/Figures/Gene_Sets/ROS_response.pdf")
-ggplot(Enrich1, aes(x = Subtype, y = Enrichment)) +
+pdf("./PAAD/Figures/ROS_response.pdf")
+ggplot(Enrich1, aes(x = CIRC_Stat, y = Enrichment)) +
   geom_boxplot(alpha = 0.5, width = 0.2) + 
-  geom_violin(aes(Subtype, fill = Subtype),
+  geom_violin(aes(CIRC_Stat, fill = CIRC_Stat),
               scale = "width", alpha = 0.8) +
   scale_fill_manual(values = cbcols) +
   labs(x = "MSI Status", y = "Enrichment of GO Pathway 0034614 (cellular response to ROS))") +
@@ -431,7 +449,7 @@ ggplot(Enrich1, aes(x = Subtype, y = Enrichment)) +
   theme(axis.text = element_text(size = 16)) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
   theme(legend.direction = "horizontal", legend.position = "top") + 
-  stat_compare_means(comparisons = my_comparisons,
+  stat_compare_means(comparisons = list(c("hiCIRC", "loCIRC")),
                      label = "p.signif", method = "wilcox.test")
 dev.off()
 
@@ -460,7 +478,7 @@ Enrichment_Ping1 <- Enrichment_Ping %>% as.data.frame() %>%
 Enrichment_Ping1$Patient.ID <- as.factor(Enrichment_Ping1$Patient.ID)
 Enrich <- merge(pat_sub, Enrichment_Ping1, by = "Patient.ID")
 
-Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -CIRC_Genes, -Patient.ID, -Subtype)
+Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -CIRC_Genes, -Patient.ID, -CIRC_Stat)
 Enrich1$Parameter <- as.factor(Enrich1$Parameter)
 
 ## Plot pearson correlation
@@ -478,7 +496,7 @@ for(i in levels(Enrich1$Parameter)){
     theme(legend.position = "none") +
     stat_cor()
   filen <- paste0(i, ".pdf")
-  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf", path = "./PAAD/Figures/Gene_Sets/Pearson",
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf", path = "./PAAD/Figures/",
                    height = 6, width = 6)
 }
 
@@ -525,13 +543,13 @@ for(i in levels(Enrichments$Geneset)){
                    height = 6, width = 6)
 }
 
-# Enrichment for Subtype
+# Enrichment for CIRC_Stat
 for(i in levels(Enrichments$Geneset)){
   print(i)
   work <- droplevels(subset(Enrichments, Geneset == i))
-  temp_plot <- ggplot(work, aes(x = Subtype, y = Enrichment)) +
+  temp_plot <- ggplot(work, aes(x = CIRC_Stat, y = Enrichment)) +
     geom_boxplot(alpha = 0.5, width = 0.2) + 
-    geom_violin(aes(Subtype, fill = Subtype),
+    geom_violin(aes(CIRC_Stat, fill = CIRC_Stat),
                 scale = "width", alpha = 0.8) +
     scale_fill_manual(values = cbcols) +
     labs(x = "MSI Status", y = paste(i, "enrichment score")) +
@@ -539,7 +557,7 @@ for(i in levels(Enrichments$Geneset)){
     theme(axis.text = element_text(size = 16)) +
     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
     theme(legend.direction = "horizontal", legend.position = "top") + 
-    stat_compare_means(comparisons = my_comparisons,
+    stat_compare_means(comparisons = list(c("hiCIRC", "loCIRC")),
                        label = "p.signif", method = "wilcox.test")
   filen <- paste0(i, ".pdf")
   ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
@@ -549,9 +567,9 @@ for(i in levels(Enrichments$Geneset)){
 
 ## Individual genes
 # how many pats
-kable(dcast(pat_sub, Subtype ~., length))
+dcast(pat_sub, CIRC_Stat ~., length)
 
-MA <- merge(FPKM, pat_sub[, c("Patient.ID", "Subtype", "CIRC_Genes")], by = "Patient.ID")
+MA <- merge(FPKM, pat_sub[, c("Patient.ID", "CIRC_Stat", "CIRC_Genes")], by = "Patient.ID")
 genes_of_interest <- c("IL6", "IL1B", "IL23A", "TGFB1",
                        "CCL2", "CCL5", "CXCL10", "CCL20",
                        "CCR6", "TLR4", "TLR2", "CIITA",
@@ -559,11 +577,11 @@ genes_of_interest <- c("IL6", "IL1B", "IL23A", "TGFB1",
                        "CDC42", "FCAR", "IGHA1")
 
 GOI <- droplevels(MA[MA$SYMBOL %in% genes_of_interest, ]) %>%
-  .[, c("Patient.ID", "SYMBOL", "FPKM", "Subtype", "CIRC_Genes")]
+  .[, c("Patient.ID", "SYMBOL", "FPKM", "CIRC_Stat", "CIRC_Genes")]
 GOI$SYMBOL <- as.factor(GOI$SYMBOL)
 
 ### IMPORTANT BIT
-GOI1 <- droplevels(subset(GOI, Subtype != "MSI-H"))
+GOI1 <- droplevels(subset(GOI, CIRC_Stat != "MSI-H"))
 ### IMPORTANT BIT
 
 for(i in levels(GOI1$SYMBOL)){
@@ -594,9 +612,9 @@ for(i in 1:length(genes_of_interest)){
   print(gene)
   GOI <- droplevels(subset(MA, SYMBOL == gene))
   GOI$Rank <- rank(GOI$FPKM)
-  temp_plot <- ggplot(GOI, aes(x = Subtype, y = Rank)) +
+  temp_plot <- ggplot(GOI, aes(x = CIRC_Stat, y = Rank)) +
     geom_boxplot(alpha = 0.5, width = 0.2) + 
-    geom_violin(aes(Subtype, fill = Subtype),
+    geom_violin(aes(CIRC_Stat, fill = CIRC_Stat),
                 scale = "width", alpha = 0.8) +
     scale_fill_manual(values = cbcols) +
     labs(x = "MSI Status", y = paste("Rank transformed", gene, "FPKM", sep = " ")) +
@@ -611,12 +629,12 @@ for(i in 1:length(genes_of_interest)){
                    path = "./PAAD/Figures/Genes_of_interest",
                    height = 6, width = 6)}
 
-FPKM2$SYMBOL[grepl("CIAP", FPKM2$SYMBOL)]
+FPKM2$SYMBOL[grepl("CEACAM", FPKM2$SYMBOL)]
 GOI <- droplevels(subset(MA, SYMBOL == "TLR4"))
 GOI$Rank <- rank(GOI$FPKM)
-ggplot(GOI, aes(x = Subtype, y = Rank)) +
+ggplot(GOI, aes(x = CIRC_Stat, y = Rank)) +
   geom_boxplot(alpha = 0.5, width = 0.2) + 
-  geom_violin(aes(Subtype, fill = Subtype),
+  geom_violin(aes(CIRC_Stat, fill = CIRC_Stat),
               scale = "width", alpha = 0.8) +
   scale_fill_manual(values = cbcols) +
   labs(x = "MSI Status", y = paste("Rank transformed", "FPKM", sep = " ")) +
@@ -653,4 +671,57 @@ invest$Viral <- ifelse((is.na(invest$Virus.detection.)), "NC", as.character(inve
 
 
 
+clin <- read.delim("./PAAD/Data/clinical.cart.2019-03-22/clinical.tsv")
+head(clin)
+
+clin$Patient.ID <- gsub("-", ".", clin$submitter_id)
+
+work <- merge(df1a, clin, by = "Patient.ID")
+head(work)
+
+
+dcast(work, CIRC_Stat ~ primary_diagnosis)
+
+dcast(work, CIRC_Stat ~ site_of_resection_or_biopsy)
+dcast(work, CIRC_Stat ~ tumor_stage, length)
+
+head(surviv1)
+
+head(work)
+surviv1 <- work[!is.na(work$days_to_death), ] %>% droplevels()
+surviv1 <- droplevels(subset(surviv1, days_to_death != "--"))
+
+surviv1 <- surviv1[, c("Patient.ID", "days_to_death", "vital_status", "CIRC_Stat")]
+surviv1$days_to_death <- as.numeric(as.character(surviv1$days_to_death))
+
+surviv1$OS_MONTHS <- surviv1$days_to_death/30.42
+head(surviv1)
+surviv1$OS_STATUS <- ifelse((surviv1$vital_status == "dead"), "DECEASED", "LIVING")
+surviv1 <- surviv1[, c("Patient.ID", "OS_MONTHS", "OS_STATUS", "CIRC_Stat")]
+
+
+clin6 <- surviv1
+clin6 <- clin6[!duplicated(clin6),]
+
+head(clin6)
+clin6$died <- ifelse((clin6$OS_STATUS == "LIVING"), F, T)
+clin6$OS_YEARS <- clin6$OS_MONTHS / 12
+
+
+library(survival)
+clin7 <- clin7[!duplicated(clin7), ]
+os.surv <- Surv(clin6$OS_MONTHS, clin6$died)
+head(clin6)
+
+fit1 <- survfit(os.surv ~ CIRC_Stat, data = clin6)
+library(survminer)
+
+survp <- ggsurvplot(fit1, pval = T, pvalmethod = T, palette = c("#56B4E9",  "#009E73", "#999999"), 
+                    risk.table = F)
+ggsave("./PAAD/Figures/survival_comb.pdf", plot = survp$plot, 
+       height = 6, width = 6)
+
+
+
+save.image("./PAAD/PAAD_DATA.RData")
 
