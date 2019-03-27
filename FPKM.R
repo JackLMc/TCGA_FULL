@@ -631,8 +631,8 @@ for(i in 1:length(genes_of_interest)){
                    path = "./Figures/Genes_of_interest",
                    height = 6, width = 6)}
 
-FPKM2$SYMBOL[grepl("CYP", FPKM2$SYMBOL)]
-GOI <- droplevels(subset(MA, SYMBOL == "FRMPD2"))
+FPKM2$SYMBOL[grepl("IKAR", FPKM2$SYMBOL)]
+GOI <- droplevels(subset(MA, SYMBOL == ""))
 GOI$Rank <- rank(GOI$FPKM)
 ggplot(GOI, aes(x = Subtype, y = Rank)) +
   geom_boxplot(alpha = 0.5, width = 0.2) + 
