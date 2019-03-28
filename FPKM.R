@@ -631,8 +631,8 @@ for(i in 1:length(genes_of_interest)){
                    path = "./Figures/Genes_of_interest",
                    height = 6, width = 6)}
 
-FPKM2$SYMBOL[grepl("IKAR", FPKM2$SYMBOL)]
-GOI <- droplevels(subset(MA, SYMBOL == "LAG3"))
+FPKM2$SYMBOL[grepl("COX", FPKM2$SYMBOL)]
+GOI <- droplevels(subset(MA, SYMBOL == "COX2"))
 GOI$Rank <- rank(GOI$FPKM)
 ggplot(GOI, aes(x = Subtype, y = Rank)) +
   geom_boxplot(alpha = 0.5, width = 0.2) + 
@@ -647,8 +647,8 @@ ggplot(GOI, aes(x = Subtype, y = Rank)) +
   stat_compare_means(comparisons = my_comparisons,
                      label = "p.signif", method = "wilcox.test")
 
-
-
+library(tidyverse)
+library(ggpubr)
 # OX40 and OX40L are increased in MSS-hiCIORC patients 
 
 
