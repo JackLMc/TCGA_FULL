@@ -374,7 +374,7 @@ book_list[["SAAs"]] <- c("TLR4", "LY96"#,
                          )
 
 a_list <- list()
-a_list[["test"]] <- c( "DUOX2", "DUOXA2")
+a_list[["test"]] <- c( "IKZF1", "IKZF3")
 
 library(GSVA)
 Enrichment_book <- gsva(FPKM3, a_list)
@@ -569,7 +569,7 @@ for(i in levels(Enrichments$Geneset)){
 
 ## Individual genes
 # how many pats
-kable(dcast(pat_sub, Subtype ~., length))
+dcast(pat_sub, Subtype ~., length)
 
 MA <- merge(FPKM, pat_sub[, c("Patient.ID", "Subtype", "CIRC_Genes")], by = "Patient.ID")
 genes_of_interest <- c("IL6", "IL1B", "IL23A", "TGFB1",
@@ -632,7 +632,7 @@ for(i in 1:length(genes_of_interest)){
                    height = 6, width = 6)}
 
 FPKM2$SYMBOL[grepl("IKAR", FPKM2$SYMBOL)]
-GOI <- droplevels(subset(MA, SYMBOL == ""))
+GOI <- droplevels(subset(MA, SYMBOL == "LAG3"))
 GOI$Rank <- rank(GOI$FPKM)
 ggplot(GOI, aes(x = Subtype, y = Rank)) +
   geom_boxplot(alpha = 0.5, width = 0.2) + 
