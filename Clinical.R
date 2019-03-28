@@ -36,6 +36,7 @@ missing_pats <- Patient_list[!'%in%'(Patient_list, COADREAD$Patient.ID)]
 pats_tcga_pub <- tcga_pub_clinical[tcga_pub_clinical$Patient.ID %in% missing_pats,]
 
 # Collate the data of interest
+head(tcga_pub_clinical)
 paper_data <- clin_app[, c("Patient.ID", "Microsatellite.instability")]
 cbio_data <- pats_tcga_pub[, c("Patient.ID", "MSI_STATUS")]
 colnames(paper_data) <- c("Patient.ID", "MSI_STATUS")
@@ -49,28 +50,25 @@ FD1$MSI_STATUS <- ifelse((FD1$MSI_STATUS == "MSI-H"), "MSI-H", "MSS")
 write.csv("./Output/Clinical_Data_614.csv", x = FD1, row.names = F)
 
 
-
-
-
-
+## Investigate from clinical carts
 pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
-ehh <- read.delim("./Data/clinical.cart.2019-03-15/exposure.tsv")
-eh <- droplevels(subset(ehh, weight != "--"))
-eh$Patient.ID <- gsub("-", ".", eh$submitter_id)
+exposure <- read.delim("./Data/clinical.cart.2019-03-15/exposure.tsv")
+expo <- droplevels(subset(exposure, weight != "--"))
+expo$Patient.ID <- gsub("-", ".", expo$submitter_id)
 
 
-try <- merge(eh[, c("Patient.ID", "bmi", "weight", "height")], pat_sub)
-try$weight <- as.numeric(as.character(try$weight))
+CC <- merge(expo[, c("Patient.ID", "bmi", "weight", "height")], pat_sub)
+CC$weight <- as.numeric(as.character(CC$weight))
 
-try$bmi
-try$bmi <- as.numeric(as.character(try$bmi))
-try$height <- as.numeric(as.character(try$height))
+CC$bmi
+CC$bmi <- as.numeric(as.character(CC$bmi))
+CC$height <- as.numeric(as.character(CC$height))
 
-try1 <- droplevels(subset(try, height != "--"))
-try1$height <- as.numeric(as.character(try1$height))
+CC1 <- droplevels(subset(CC, height != "--"))
+CC1$height <- as.numeric(as.character(CC1$height))
 
 
-ggplot(try1, aes(x = Subtype, y = height)) +
+ggplot(CC1, aes(x = Subtype, y = height)) +
   geom_boxplot(alpha = 0.5, width = 0.2) + 
   geom_violin(aes(Subtype, fill = Subtype),
               scale = "width", alpha = 0.8) +
@@ -84,41 +82,7 @@ ggplot(try1, aes(x = Subtype, y = height)) +
                      label = "p.signif", method = "wilcox.test")
 
 
-
-
-
-clinical_foll <- read.delim("~/Downloads/coadread_tcga_pan_can_atlas_2018_clinical_data.tsv")
-head(clinical_foll)
-
-clinical_foll$Patient.ID <- gsub("-", ".", clinical_foll$Patient.ID)
-
-
-this <- merge(clinical_foll, pat_sub, by = "Patient.ID")
-this <- this[!is.na(this$Patient.Weight), ]
-
-head(this)
-this$Patient.Weight <- as.numeric(as.character(this$Patient.Weight))
-
-ggplot(this, aes(x = Subtype.y, y = Patient.Weight)) +
-  geom_boxplot(alpha = 0.5, width = 0.2) + 
-  geom_violin(aes(Subtype.y, fill = Subtype.y),
-              scale = "width", alpha = 0.8) +
-  scale_fill_manual(values = cbcols) +
-  labs(x = "MSI Status", y = "weight") +
-  theme_bw() +
-  theme(axis.text = element_text(size = 16)) +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-  theme(legend.direction = "horizontal", legend.position = "top") + 
-  stat_compare_means(comparisons = my_comparisons,
-                     label = "p.signif", method = "wilcox.test")
-
-
-
-dcast(this, Subtype.y ~ Radiation.Therapy, length)
-dcast(this, Subtype.y ~ X9q.Status, length)
-colnames(this)
-
-## Survival stats
+## Survival stats - collated.
 Paper_clinical <- read.csv("./Data/Clinical_data/Paper_Clinical.csv")
 Paper_clinical$Patient.ID <- samptopat(Paper_clinical$TCGA.ID)
 Paper_clinical$Patient.ID <- gsub("-", ".", Paper_clinical$Patient.ID)
@@ -181,7 +145,7 @@ dcast(vir, Subtype ~ Viral, length)
 head(vir)
 
 # PANCAN stuff
-this <- read.delim("~/Downloads/clinical_PANCAN_patient_with_followup.tsv")
+this <- read.delim("./Data/Clinical_data/clinical_PANCAN_patient_with_followup.tsv")
 this$Patient.ID <- gsub("-", ".", this$bcr_patient_barcode)
 
 pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
