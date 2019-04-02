@@ -631,8 +631,8 @@ for(i in 1:length(genes_of_interest)){
                    path = "./Figures/Genes_of_interest",
                    height = 6, width = 6)}
 
-FPKM2$SYMBOL[grepl("COX", FPKM2$SYMBOL)]
-GOI <- droplevels(subset(MA, SYMBOL == "COX2"))
+FPKM2$SYMBOL[grepl("NRF", FPKM2$SYMBOL)]
+GOI <- droplevels(subset(MA, SYMBOL == "CDH1"))
 GOI$Rank <- rank(GOI$FPKM)
 ggplot(GOI, aes(x = Subtype, y = Rank)) +
   geom_boxplot(alpha = 0.5, width = 0.2) + 
@@ -649,8 +649,29 @@ ggplot(GOI, aes(x = Subtype, y = Rank)) +
 
 library(tidyverse)
 library(ggpubr)
-# OX40 and OX40L are increased in MSS-hiCIORC patients 
+# OX40 and OX40L are increased in MSS-hiCIORC patients  
+autoph<- read.delim("~/Downloads/geneset.txt", header = F)
+head(autoph)
+autoph <- autoph$V1
+autophagy <- list()
+autophagy[["GO_Autophagy"]] <- levels(autoph)
 
 
+Enrichments <- gsva(FPKM3, autophagy) %>% as.data.frame() %>%
+  rownames_to_column(., "Geneset") %>% gather(contains("TCGA"), key = "Patient.ID", value = "Enrichment") %>%
+  merge(., pat_sub, by = "Patient.ID")
+head(Enrichments)
 
+ggplot(Enrichments, aes(x = Subtype, y = Enrichment)) +
+  geom_boxplot(alpha = 0.5, width = 0.2) + 
+  geom_violin(aes(Subtype, fill = Subtype),
+              scale = "width", alpha = 0.8) +
+  scale_fill_manual(values = cbcols) +
+  labs(x = "MSI Status", y = "enrichment of Autophagy") +
+  theme_bw() +
+  theme(axis.text = element_text(size = 16)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.direction = "horizontal", legend.position = "top") + 
+  stat_compare_means(comparisons = my_comparisons,
+                     label = "p.signif", method = "wilcox.test")
 
