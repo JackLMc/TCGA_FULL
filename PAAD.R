@@ -12,7 +12,7 @@ cbcols <- c("hiCIRC" = "#999999",
             "loCIRC" = "#56B4E9",
             "MSS" = "#009E73",
             "MSI-L" = "#E69F00")
-head(pap_clin)
+
 # source("Clinical.R") # Run to gain the clinical dataframe that's in Output (Clin_PAAD)
 # load("FPKMs.RData")
 
@@ -363,17 +363,14 @@ dev.off()
 # load("FPKMs.RData")
 # pat_sub <- read.csv("./Output/Patient_CIRC_Stats.csv")
 library(reshape2)
-dcast(pat_sub, CIRC_Stat ~.)
 pat_sub <- df1a[, c("Patient.ID", "CIRC_Genes", "CIRC_Stat")]
+dcast(pat_sub, CIRC_Stat ~.)
 
 ##### GENESETS #####
 # Bact
-rm(book1)
 book_list <- list()
 
 FPKM2$SYMBOL[grepl("EP4", FPKM2$SYMBOL)]
-
-
 book_list[["SAAs"]] <- c("TLR4", "LY96"#,
                          #"TIRAP"#, "MYD88"
                          # ,"IRAK4", "IRAK1",
@@ -563,6 +560,114 @@ for(i in levels(Enrichments$Geneset)){
   ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
                    path = "./PAAD/Figures/",
                    height = 6, width = 6)}
+
+
+# Cancer Testis Antigens
+## Collated
+library(GSVA)
+Ctag <- read.csv("./PAAD/Data/CTag.csv")
+
+Ctag_list <- list()
+
+
+Ctag1 <- toupper(levels(Ctag$Family.member)[!duplicated(levels(Ctag$Family.member))])
+notin <-  Ctag1[!'%in%'(Ctag1, FPKM2$SYMBOL)]
+write.table(notin, file = "~/Desktop/notin_V2.csv")
+
+# Get the genes that are present in the dataset
+Ctag2 <- Ctag1[Ctag1 %in% FPKM2$SYMBOL]
+
+# Subset the data for the genes taht are present 
+indv <- FPKM2[FPKM2$SYMBOL %in% Ctag2, ] %>% droplevels()
+indv$SYMBOL <- as.factor(indv$SYMBOL)
+
+# Gain the patients we have CIRC status for
+indv1 <- indv %>% gather(contains("TCGA"), key = "Patient.ID", value = "FPKM") %>%
+  merge(., pat_sub[, c("Patient.ID", "CIRC_Stat")], by = "Patient.ID")
+
+## Drop the genes which are 0 across all patients
+indv1a <- indv1[, c("Patient.ID", "SYMBOL", "FPKM")]
+indv2 <- spread(indv1a, key = "SYMBOL", value = "FPKM") %>% 
+  column_to_rownames(., var = "Patient.ID")
+indv3 <- indv2[colSums(indv2[, names(indv2) != "CIRC_Stat"]) != 0] 
+
+# New list
+Ctag_list[["CTag"]] <- colnames(indv3)
+
+Enrichments <- gsva(FPKM3, Ctag_list) %>% as.data.frame() %>%
+  rownames_to_column(., "Geneset") %>% gather(contains("TCGA"), key = "Patient.ID", value = "Enrichment") %>%
+  merge(., pat_sub, by = "Patient.ID")
+
+Enrichments$Geneset <- as.factor(Enrichments$Geneset)
+
+pdf("./PAAD/Figures/CTags.pdf")
+ggplot(Enrichments, aes(x = CIRC_Stat, y = Enrichment)) +
+  geom_boxplot(alpha = 0.5, width = 0.2) + 
+  geom_violin(aes(CIRC_Stat, fill = CIRC_Stat),
+              scale = "width", alpha = 0.8) +
+  scale_fill_manual(values = cbcols) +
+  labs(x = "MSI Status", y = "Enrichment of Cancer Testis Ag") +
+  theme_bw() +
+  theme(axis.text = element_text(size = 16)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.direction = "horizontal", legend.position = "top") + 
+  stat_compare_means(comparisons = list(c("hiCIRC", "loCIRC")),
+                     label = "p.signif", method = "wilcox.test")
+dev.off()
+
+
+# Individual Symbols
+head(indv3)
+indv3a <- rownames_to_column(indv3, var = "Patient.ID") %>%
+  gather(key = "SYMBOL", value = "FPKM", -Patient.ID) %>%
+  merge(., pat_sub[, c("Patient.ID", "CIRC_Stat")])
+
+indv3a$SYMBOL <- as.factor(indv3a$SYMBOL)
+
+
+for(i in levels(indv3a$SYMBOL)){
+  print(i)
+  work <- droplevels(subset(indv3a, SYMBOL == i))
+  work$Rank <- rank(work$FPKM)
+  temp_plot <- ggplot(work, aes(x = CIRC_Stat, y = Rank)) +
+    geom_boxplot(alpha = 0.5, width = 0.2) + 
+    geom_violin(aes(CIRC_Stat, fill = CIRC_Stat),
+                scale = "width", alpha = 0.8) +
+    scale_fill_manual(values = cbcols) +
+    labs(x = "MSI Status", y = paste("Rank-Transformed ", i, " FPKM")) +
+    theme_bw() +
+    theme(axis.text = element_text(size = 16)) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(legend.direction = "horizontal", legend.position = "top") + 
+    stat_compare_means(comparisons = list(c("hiCIRC", "loCIRC")),
+                       label = "p.signif", method = "wilcox.test")
+  filen <- paste0(i, ".pdf")
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
+                   path = "./PAAD/Figures/Individual_CTags/",
+                   height = 6, width = 6)
+}
+
+prin_comp <- prcomp(indv3, scale. = T)
+
+library(ggbiplot)
+### Phenograph
+# pdf("./PAAD/Figures/PhenoG_CIRC.pdf", height = 6, width = 6)
+indv4 <- indv3 %>% rownames_to_column(., var = "Patient.ID") %>%
+  merge(., pat_sub[, c("Patient.ID", "CIRC_Stat")])
+Subtype <- indv4[, "CIRC_Stat"]
+
+thesegenes <- colnames(indv3)
+write.table(thesegenes, file = "~/Desktop/thesegenes.csv", row.names = F)
+
+ggbiplot(prin_comp, obs.scale = 1, var.scale = 1, 
+         groups = Subtype, circle = T, var.axes = F) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.direction = "horizontal", legend.position = "top") 
+
+
+dev.off()
+
 
 
 ## Individual genes
