@@ -40,6 +40,8 @@ converter1$File.Name <- gsub(".htseq.counts.gz", "", converter1$File.Name)
 
 lists1 <- lists[names(lists) %in% converter1$File.ID]
 
+
+
 multi_join <- function(list_of_loaded_data, join_func, ...){
   require("dplyr")
   output <- Reduce(function(x, y) {join_func(x, y, ...)}, list_of_loaded_data)
@@ -67,7 +69,7 @@ converter2 <- droplevels(subset(converter1, Sample.Type != "Solid Tissue Normal"
 #   }
 
 
-temp_df1 <- merge(converter2[, c("Patient.ID", "File.ID")], temp_df, by = "File.ID")
+temp_df1 <- merge(converter1[, c("Patient.ID", "File.ID")], temp_df, by = "File.ID")
 library(reshape2)
 Counts <- dcast(temp_df1, Gene ~ Patient.ID, sum, value.var = "Count")
 # droplevels(subset(temp_df1, Patient.ID == "TCGA.A6.2672" & Gene == "ENSG00000000003.13")) # Matches the figure in "Try"
@@ -118,11 +120,11 @@ lcpm <- cpm(x, log = T)
 
 # Remove lowly expressed transcripts
 dim(x)
-table(rowSums(x$counts==0)==10) # Show me the amount of transcripts that are zero for all 40 samples
+table(rowSums(x$counts==0)==10) # Show me the amount of transcripts that are zero for 10 samples
 CPM_scaling <- min(x$samples$lib.size)/1000000
 cpm_scale <- 6.5/CPM_scaling
 
-keep.exprs <- rowSums(cpm>cpm_scale)>=1 # Genes must have a cpm above 0.44 (count of 6.5 in lowest library) and be expressed in at least 2 groups (1 population)
+keep.exprs <- rowSums(cpm>cpm_scale)>=1 # Genes must count of 6.5 in lowest library
 x <- x[keep.exprs,, keep.lib.sizes = F]
 
 # Normalising gene expression
@@ -215,10 +217,10 @@ efit <- eBayes(vfit, robust = T)
 summary(decideTests(efit))
 
 ### More stringently selected DE genes
-tfit <- treat(vfit, lfc = 0.1)
+tfit <- treat(vfit, lfc = 1)
 summary(decideTests(tfit))
 
-dt <- decideTests(efit)
+dt <- decideTests(tfit)
 # summary(dt)
 # de.common <- which(dt[,2]!=0 & dt[,3]!=0)
 # length(de.common)
@@ -251,7 +253,7 @@ Symbol_MSI_hiCIRC[grepl("MUC", Symbol_MSI_hiCIRC)]
 # dev.off()
 
 # Looking at the data
-MSI_H.vs.MSS_hiCIRC <- topTreat(efit, coef = 1, n = Inf)
+MSI_H.vs.MSS_hiCIRC <- topTreat(tfit, coef = 1, n = Inf)
 MSI_H.vs.MSS <- topTreat(efit, coef = 2, n = Inf)
 MSS_hiCIRC.vs.MSS <- topTreat(efit, coef = 3, n = Inf)
 
@@ -260,7 +262,7 @@ myData <- as.data.frame(MSI_H.vs.MSS_hiCIRC)
 myData$padjThresh <- as.factor(myData$adj.P.Val < 0.05)
 
 take_a_look <- myData[myData$adj.P.Val <= 0.01, ]
-View(myData)
+View(take_a_look)
 
 
 myData$Labels <- myData$SYMBOL
