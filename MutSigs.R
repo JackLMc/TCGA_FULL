@@ -13,7 +13,8 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
 library(maftools)
 muta <- read.maf("./Data/Mutations/mc3.v0.2.8.PUBLIC.maf")
 
-mutation <- muta@data
+mutation <- muta@data # subset by impact --> subset by stopcodon/frameshift.
+mutation$IMPACT <- as.factor(mutation$IMPACT)
 mutation$Patient.ID <- samptopat(mutation$Tumor_Sample_Barcode)
 mutation$Patient.ID <- gsub("-", ".", mutation$Patient.ID)
 
@@ -23,6 +24,7 @@ tcga_mut <- mutation[mutation$Patient.ID %in% pat_sub$Patient.ID, ]
 
 #### Number of mutations between groups ####
 # Count up
+## Including silent
 Mutation_numbers <- tcga_mut %>%
   dplyr:: group_by(Patient.ID, Variant_Type) %>%
   dplyr:: summarise(length(Variant_Type)) %>%
@@ -54,6 +56,58 @@ for(i in levels(mut_clin$Variant)){
   filen <- paste0(i, ".pdf")
   ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf", path = "./Figures/Mutation/Numbers",
                    height = 6, width = 6)}
+
+
+# Remove silent
+tcga_mut$Consequence <- as.factor(tcga_mut$Consequence)
+levels(tcga_mut$Consequence)
+tcga_mut$Feature_type <- as.factor(tcga_mut$Feature_type)
+tcga_mut$Feature <- as.factor(tcga_mut$Feature)
+tcga_mut$BIOTYPE <- as.factor(tcga_mut$BIOTYPE)
+tcga_mut$VARIANT_CLASS <- as.factor(tcga_mut$VARIANT_CLASS)
+tcga_mut$Variant_Classification <- as.factor(tcga_mut$Variant_Classification)
+levels(tcga_mut$Variant_Classification)
+str(tcga_mut)
+
+
+Mutation_numbers <- tcga_mut %>%
+  dplyr:: group_by(Patient.ID, Consequence) %>%
+  dplyr:: summarise(length(Consequence)) %>%
+  spread(key = "Consequence", value = "length(Consequence)")%>%
+  mutate_all(funs(replace(., is.na(.), 0))) %>% as.data.frame()
+Mutation_numbers$TOTAL <- rowSums(Mutation_numbers[!'%in%'(names(Mutation_numbers), "Patient.ID")])
+
+mut_clin <- Mutation_numbers %>% 
+  merge(., pat_sub[, c("Patient.ID", "Subtype")], by = "Patient.ID") %>%
+  gather(., -"Patient.ID", -"Subtype", key = "Consequence", value = "Number")
+
+
+# Plot
+## All
+mut_clin$Consequence <- as.factor(mut_clin$Consequence)
+for(i in levels(mut_clin$Consequence)){
+  print(i)
+  Chosen <- droplevels(subset(mut_clin, Consequence == i))
+  Chosen$Rank <- rank(Chosen$Number)
+  temp_plot <- ggplot(Chosen, aes(x = Subtype, y = Rank)) +
+    geom_boxplot(alpha = 0.5, width = 0.2) + 
+    geom_violin(aes(Subtype, fill = Subtype), scale = "width", alpha = 0.8) +
+    scale_fill_manual(values = cbcols) +
+    labs(x = "Subtype", y = paste0("Rank transformed ", i, " mutations")) +
+    theme_bw() +
+    theme(axis.text = element_text(size = 16)) +
+    theme(legend.direction = "horizontal", legend.position = "top") +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    stat_compare_means(comparisons = my_comparisons, label = "p.signif")
+  filen <- paste0(i, ".pdf")
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf", path = "./Figures/Mutation/Numbers/Test",
+                   height = 6, width = 6)}
+
+
+
+# Only high impact
+
+
 
 #### Somatic Signatures ####
 large <- c("SomaticSignatures",
@@ -361,3 +415,18 @@ ggplot(that, aes(x = Subtype, y = percent)) +
   stat_compare_means(comparisons = my_comparisons,
                      label = "p.signif", method = "wilcox.test")
 
+
+
+
+
+
+
+#### Mutated pathways ####
+if (!requireNamespace("BiocManager", quietly = T))
+  install.packages("BiocManager")
+BiocManager::install("seq2pathway", version = "3.8")
+
+library(seq2pathway)
+
+
+browseVignettes("seq2pathway")
