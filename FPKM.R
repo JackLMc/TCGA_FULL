@@ -631,8 +631,18 @@ for(i in 1:length(genes_of_interest)){
                    path = "./Figures/Genes_of_interest",
                    height = 6, width = 6)}
 
-FPKM2$SYMBOL[grepl("NRF", FPKM2$SYMBOL)]
-GOI <- droplevels(subset(MA, SYMBOL == "CDH1"))
+FPKM2$SYMBOL[grepl("B2M", FPKM2$SYMBOL)]
+GOI <- droplevels(subset(MA, SYMBOL == "TLR4"))
+
+hiCIRC <- droplevels(subset(GOI, Subtype == "MSS-hiCIRC"))
+mss <- droplevels(subset(GOI, Subtype == "MSS"))
+msi <- droplevels(subset(GOI, Subtype == "MSI-H"))
+
+
+median(hiCIRC$FPKM)
+median(mss$FPKM)
+median(msi$FPKM)
+
 GOI$Rank <- rank(GOI$FPKM)
 ggplot(GOI, aes(x = Subtype, y = Rank)) +
   geom_boxplot(alpha = 0.5, width = 0.2) + 
@@ -674,4 +684,51 @@ ggplot(Enrichments, aes(x = Subtype, y = Enrichment)) +
   theme(legend.direction = "horizontal", legend.position = "top") + 
   stat_compare_means(comparisons = my_comparisons,
                      label = "p.signif", method = "wilcox.test")
+
+
+
+
+
+
+
+## ROS
+ROS <- read.delim("~/Downloads/geneset.txt")
+head(ROS)
+ROS_list <- list()
+ROS_list[["wnt"]] <- levels(ROS$KEGG_WNT_SIGNALING_PATHWAY)
+# head(ROS_list)
+library(GSVA)
+# rownames(FPKM3)[grepl("WNT", rownames(FPKM3))]
+
+Enrichment_book <- gsva(FPKM3, ROS_list)
+Enrichment_book1 <- Enrichment_book %>% as.data.frame() %>%
+  rownames_to_column(., var = "Geneset") %>%
+  gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
+  spread(., key = "Geneset", value = "Enrich")
+
+
+Enrichment_book1$Patient.ID <- as.factor(Enrichment_book1$Patient.ID)
+Enrich <- merge(pat_sub, Enrichment_book1, by = "Patient.ID")
+
+Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -CIRC_Genes, -Patient.ID, -Subtype)
+Enrich1$Parameter <- as.factor(Enrich1$Parameter)
+
+levels(Enrich1$Parameter)
+
+work <- droplevels(subset(Enrich1, Parameter == "wnt"))
+ggplot(work, aes(x = Subtype, y = Enrichment)) +
+  geom_boxplot(alpha = 0.5, width = 0.2) + 
+  geom_violin(aes(Subtype, fill = Subtype),
+              scale = "width", alpha = 0.8) +
+  scale_fill_manual(values = cbcols) +
+  labs(x = "Subtype", y = paste(i, "enrichment score")) +
+  theme_bw() +
+  theme(axis.text = element_text(size = 16)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.direction = "horizontal", legend.position = "top") + 
+  stat_compare_means(comparisons = my_comparisons,
+                     label = "p.signif", method = "wilcox.test")
+
+
+
 
