@@ -11,6 +11,8 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
             "MSI-L" = "#E69F00")
 
 
+head(combined_df)
+
 # Looking for the files
 thousand.folders <- list.dirs(path = "./Data/CopyNum", full.names = T)
 filelist1 <- sapply(thousand.folders[-1], function(x){
