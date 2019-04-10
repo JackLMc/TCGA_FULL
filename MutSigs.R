@@ -13,10 +13,11 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
 library(maftools)
 muta <- read.maf("./Data/Mutations/mc3.v0.2.8.PUBLIC.maf")
 
-mutation <- muta@data # subset by impact --> subset by stopcodon/frameshift.
+mutation <- muta@data # THIS IS SOMATIC SNPs
 mutation$IMPACT <- as.factor(mutation$IMPACT)
 mutation$Patient.ID <- samptopat(mutation$Tumor_Sample_Barcode)
 mutation$Patient.ID <- gsub("-", ".", mutation$Patient.ID)
+mutation$Patient.ID[duplicated(mutation$Patient.ID)]
 
 # Clinical
 pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
