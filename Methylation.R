@@ -34,7 +34,13 @@ write.csv(methyl_data, file = "./Data/Methylation/COADREAD_methyl.csv", row.name
 
 methyl_data <- read.csv("./Data/Methylation/COADREAD_methyl.csv")
 
-gathered_meth <- methyl_data %>% gather(contains("TCGA"), key = "Patient.ID", value = "beta_val")
+gathered_meth <- methyl_data %>% gather(contains("TCGA"), key = "Sample.ID", value = "beta_val")
+gathered_meth$Patient.ID <- samptopat(gathered_meth$Sample.ID)
+gathered_meth$Patient.ID <- gsub("-", ".", gathered_meth$Patient.ID)
+
 pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
 gat_meth_clin <- merge(gathered_meth, pat_sub[, c("Patient.ID", "Subtype")], by = "Patient.ID")
+
+
+
 
