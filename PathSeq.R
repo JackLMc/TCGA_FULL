@@ -118,6 +118,17 @@ pathseq3 <- rbind(pathseq2, missing_data)
 # Merge with the pat_sub file
 pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
 pathseq4 <- merge(pathseq3, pat_sub, by = "Patient.ID")
+pathseq4 <-  pathseq4[, c("Patient.ID", "kingdom", "type", "name",
+                          "reference_length", "score", "score_normalized",
+                          "reads", "unambiguous", "CIRC_Genes", "Subtype")]
 
 head(pathseq4)
 
+
+library(reshape2)
+str(pathseq4)
+
+ 
+droplevels(subset(pathseq4, Subtype == "MSS"))$Patient.ID %>% nlevels()
+droplevels(subset(pathseq4, Subtype == "MSS-hiCIRC"))$Patient.ID %>% nlevels()
+droplevels(subset(pathseq4, Subtype == "MSI-H"))$Patient.ID %>% nlevels()
