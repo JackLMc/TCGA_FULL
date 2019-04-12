@@ -15,9 +15,10 @@ muta <- read.maf("./Data/Mutations/mc3.v0.2.8.PUBLIC.maf")
 
 mutation <- muta@data # THIS IS SOMATIC SNPs
 mutation$IMPACT <- as.factor(mutation$IMPACT)
+levels(mutation$IMPACT)
 mutation$Patient.ID <- samptopat(mutation$Tumor_Sample_Barcode)
 mutation$Patient.ID <- gsub("-", ".", mutation$Patient.ID)
-mutation$Patient.ID[duplicated(mutation$Patient.ID)]
+# mutation$Patient.ID[duplicated(mutation$Patient.ID)]
 
 # Clinical
 pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
@@ -62,6 +63,17 @@ for(i in levels(mut_clin$Variant)){
 # Remove silent
 tcga_mut$Consequence <- as.factor(tcga_mut$Consequence)
 levels(tcga_mut$Consequence)
+droplevels(subset(tcga_mut, Consequence == "splice_donor_variant" & Hugo_Symbol == "MUC16"))
+head(tcga_mut)
+
+those_with_num <- droplevels(subset(tcga_mut, dbSNP_RS != "."))
+head(those_with_num)
+
+
+this <- merge(those_with_num, pat_sub[, c("Patient.ID", "Subtype")], by = "Patient.ID")
+
+
+
 tcga_mut$Feature_type <- as.factor(tcga_mut$Feature_type)
 tcga_mut$Feature <- as.factor(tcga_mut$Feature)
 tcga_mut$BIOTYPE <- as.factor(tcga_mut$BIOTYPE)
@@ -130,8 +142,8 @@ all.equal(somsig$Match_Norm_Seq_Allele2, somsig$Match_Norm_Seq_Allele1)
 
 ## Label the base changes
 somsig <- somsig %>%
-  mutate(BaseChange = ifelse( (as.character(Reference_Allele)==as.character(Tumor_Seq_Allele1) & as.character(Reference_Allele) == as.character(Tumor_Seq_Allele2)), "NoCh",
-                               ifelse(as.character(Reference_Allele)==as.character(Tumor_Seq_Allele1), paste(Reference_Allele,Tumor_Seq_Allele2, sep="."), paste(Reference_Allele, Tumor_Seq_Allele1, sep = "."))))
+  mutate(BaseChange = ifelse((as.character(Reference_Allele)==as.character(Tumor_Seq_Allele1) & as.character(Reference_Allele) == as.character(Tumor_Seq_Allele2)), "NoCh",
+                               ifelse(as.character(Reference_Allele)==as.character(Tumor_Seq_Allele1), paste(Reference_Allele,Tumor_Seq_Allele2, sep = "."), paste(Reference_Allele, Tumor_Seq_Allele1, sep = "."))))
 
 
 # somsig$BaseChange <- apply(somsig[names(somsig) %in% c("Reference_Allele", "Tumor_Seq_Allele1", "Tumor_Seq_Allele2")], 1, 
