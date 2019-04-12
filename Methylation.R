@@ -61,11 +61,17 @@ important_annotations <- annotation.table[, c("Name", "chr", "Type", "Islands_Na
                                               "UCSC_RefGene_Group")]
 colnames(gat_meth_clin)[colnames(gat_meth_clin) == "Composite.Element.REF"] <- "Name"
 
+important_annotations <- droplevels(subset(important_annotations, UCSC_RefGene_Name != ""))
+important_annotations$UCSC_RefGene_Name <- as.factor(important_annotations$UCSC_RefGene_Name)
 IA <- important_annotations[important_annotations$Name %in% gat_meth_clin$Name, ]
 rownames(IA) <- NULL
+
 # rm(important_annotations)
 # rm(annotation.table)
 # rm(IlluminaHumanMethylation450kanno.ilmn12.hg19)
+
+write.csv(IA, file = "./Data/Methylation/Probe_Annotations.csv", row.names = F)
+IA <- read.csv("./Data/Methylation/Probe_Annotations.csv")
 
 
 ### Just Grep for the genes of interest out of the RefGene_Name column
