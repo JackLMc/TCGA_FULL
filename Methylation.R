@@ -1,10 +1,8 @@
 library(tidyverse)
 library(UsefulFunctions)
 
-these_pats <- read.delim("./Data/Important/gdc_sample_sheet_FPKM.tsv")
-
-these <- these_pats$Sample.ID
-these <- as.character(these)
+these_pats <- read.delim("./Data/Important/gdc_sample_sheet_FPKM.tsv")$Sample.ID
+these <- as.character(these_pats)
 columns_I_want <- append(c("Composite Element REF"), as.character(these))
 
 write.table(columns_I_want, file = "./Data/Methylation/these_cols.txt", row.names = F, col.names = F)
@@ -41,6 +39,21 @@ gathered_meth$Patient.ID <- gsub("-", ".", gathered_meth$Patient.ID)
 pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
 gat_meth_clin <- merge(gathered_meth, pat_sub[, c("Patient.ID", "Subtype")], by = "Patient.ID")
 
+# Annotation of probes
+# BiocManager::install("IlluminaHumanMethylation450kanno.ilmn12.hg19")
+# BiocManager::install("minfi")
+# BiocManager::install("readr")
+
+library("IlluminaHumanMethylation450kanno.ilmn12.hg19")
+data("IlluminaHumanMethylation450kanno.ilmn12.hg19")
+annotation.table <- getAnnotation(IlluminaHumanMethylation450kanno.ilmn12.hg19) %>% as.data.frame()
+annotation.table <- as.data.frame(annotation.table)
+
+important_annotations <- annotation.table[, c("Name", "chr", "Type", "Islands_Name", "UCSC_RefGene_Name",
+                                              "UCSC_RefGene_Group")]
+colnames(gat_meth_clin)[colnames(gat_meth_clin) == "Composite.Element.REF"] <- "Name"
+
+might_be_big <- merge(gat_meth_clin, important_annotations, by = "Name")
 
 
-
+head(might_be_big)
