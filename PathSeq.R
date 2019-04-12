@@ -13,6 +13,7 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
 
 
 # Looking for the files
+## Mount the drive
 thousand.folders <- list.dirs(path = "/Volumes/2018/beggsa-tcgacolorectal/download_rest/bacterial_project/results", full.names = T)
 filelist1 <- sapply(thousand.folders, function(x){
   list.files(x, pattern = ".pathseq.txt$", full.names = T)})
