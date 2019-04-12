@@ -1,12 +1,21 @@
 library(tidyverse)
 library(UsefulFunctions)
+library(ggpubr)
 
-these_pats <- read.delim("./Data/Important/gdc_sample_sheet_FPKM.tsv")$Sample.ID
-these <- as.character(these_pats)
-columns_I_want <- append(c("Composite Element REF"), as.character(these))
+my_comparisons <- list(c("MSS-hiCIRC", "MSI-H"),
+                       c("MSS-hiCIRC", "MSS"),
+                       c("MSI-H", "MSS"))
+cbcols <- c("MSS-hiCIRC" = "#999999",
+            "MSI-H" = "#56B4E9",
+            "MSS" = "#009E73",
+            "MSI-L" = "#E69F00")
 
-write.table(columns_I_want, file = "./Data/Methylation/these_cols.txt", row.names = F, col.names = F)
 
+COADREAD_pats <- read.delim("./Data/Important/gdc_sample_sheet_FPKM.tsv")$Sample.ID
+COADREAD_pats1 <- as.character(COADREAD_pats)
+columns_I_want <- append(c("Composite Element REF"), as.character(COADREAD_pats1))
+
+write.table(columns_I_want, file = "./Data/Methylation/COADREAD_pats.txt", row.names = F, col.names = F)
 
 
 methyl <- data.table:: fread("./Data/Methylation/jhu-usc.edu_PANCAN_merged_HumanMethylation27_HumanMethylation450.betaValue_whitelisted.tsv")
@@ -47,13 +56,65 @@ gat_meth_clin <- merge(gathered_meth, pat_sub[, c("Patient.ID", "Subtype")], by 
 library("IlluminaHumanMethylation450kanno.ilmn12.hg19")
 data("IlluminaHumanMethylation450kanno.ilmn12.hg19")
 annotation.table <- getAnnotation(IlluminaHumanMethylation450kanno.ilmn12.hg19) %>% as.data.frame()
-annotation.table <- as.data.frame(annotation.table)
 
 important_annotations <- annotation.table[, c("Name", "chr", "Type", "Islands_Name", "UCSC_RefGene_Name",
                                               "UCSC_RefGene_Group")]
 colnames(gat_meth_clin)[colnames(gat_meth_clin) == "Composite.Element.REF"] <- "Name"
 
-might_be_big <- merge(gat_meth_clin, important_annotations, by = "Name")
+IA <- important_annotations[important_annotations$Name %in% gat_meth_clin$Name, ]
+rownames(IA) <- NULL
+# rm(important_annotations)
+# rm(annotation.table)
+# rm(IlluminaHumanMethylation450kanno.ilmn12.hg19)
 
 
-head(might_be_big)
+### Just Grep for the genes of interest out of the RefGene_Name column
+CIITA <- droplevels(IA[grepl("CIITA", IA$UCSC_RefGene_Name), ])
+
+working_on <- merge(gat_meth_clin, CIITA, by = "Name") %>% droplevels()
+
+for(i in levels(working_on$Name)){
+  print(paste("Working on the ", i, " of CIITA"))
+  work <- droplevels(subset(working_on, Name == i))
+  temp_plot <- ggplot(work, aes(x = Subtype, y = beta_val)) +
+    geom_boxplot(alpha = 0.5, width = 0.2) + 
+    geom_violin(aes(Subtype, fill = Subtype),
+                scale = "width", alpha = 0.8) +
+    scale_fill_manual(values = cbcols) +
+    labs(x = "Subtype", y = paste("CIITA ", i, " Beta Value")) +
+    theme_bw() +
+    theme(axis.text = element_text(size = 16)) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(legend.direction = "horizontal", legend.position = "top") + 
+    stat_compare_means(comparisons = my_comparisons,
+                       label = "p.signif", method = "wilcox.test")
+  filen <- paste0("CIITA", i, ".pdf")
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
+                   path = "./Figures/Methylation",
+                   height = 6, width = 6)}
+
+
+### TLR4
+TLR4 <- droplevels(IA[grepl("TLR4", IA$UCSC_RefGene_Name), ])
+working_on <- merge(gat_meth_clin, TLR4, by = "Name") %>% droplevels()
+
+for(i in levels(working_on$Name)){
+  print(paste("Working on the ", i, "probe of TLR4"))
+  work <- droplevels(subset(working_on, Name == i))
+  temp_plot <- ggplot(work, aes(x = Subtype, y = beta_val)) +
+    geom_boxplot(alpha = 0.5, width = 0.2) + 
+    geom_violin(aes(Subtype, fill = Subtype),
+                scale = "width", alpha = 0.8) +
+    scale_fill_manual(values = cbcols) +
+    labs(x = "Subtype", y = paste("TLR4 ", i, " Beta Value")) +
+    theme_bw() +
+    theme(axis.text = element_text(size = 16)) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(legend.direction = "horizontal", legend.position = "top") + 
+    stat_compare_means(comparisons = my_comparisons,
+                       label = "p.signif", method = "wilcox.test")
+  filen <- paste0("TLR4_", i, ".pdf")
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
+                   path = "./Figures/Methylation",
+                   height = 6, width = 6)}
+
