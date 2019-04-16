@@ -10,9 +10,6 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
             "MSS" = "#009E73",
             "MSI-L" = "#E69F00")
 
-
-head(combined_df)
-
 # Looking for the files
 thousand.folders <- list.dirs(path = "./Data/CopyNum", full.names = T)
 filelist1 <- sapply(thousand.folders[-1], function(x){
@@ -33,9 +30,9 @@ names(lists) <- gsub("./Data/CopyNum/", "", names(lists))
 
 # Patients I have CIRC scores and microsatellite status for.
 # pat_sub <- read.csv("./Data/Important/patient_subtypes.csv")
-converter <- read.delim("./Data/CopyNum/sample.tsv")[, c("sample_id", "sample_submitter_id", "case_id", "case_submitter_id")]
-
-converter$Patient.ID <- gsub("-", ".", converter$case_submitter_id)
+# converter <- read.delim("./Data/CopyNum/sample.tsv")[, c("sample_id", "sample_submitter_id", "case_id", "case_submitter_id")]
+# 
+# converter$Patient.ID <- gsub("-", ".", converter$case_submitter_id)
 # converter1 <- converter[converter$Patient.ID %in% pat_sub$Patient.ID, ]
 
 # clin <- read.delim("./Data/Clinical/clinical.tsv")
@@ -50,32 +47,63 @@ multi_join <- function(list_of_loaded_data, join_func, ...){
   return(output)
 }
 
-combined_df <- multi_join(lists, full_join)
+combined_df <- multi_join(lists, full_join, by = c("Gene Symbol", "Gene ID", "Cytoband"))
 
 colnames(combined_df)[colnames(combined_df) == "Gene Symbol"] <- "Gene.Symbol"
 colnames(combined_df)[colnames(combined_df) == "Gene ID"] <- "Gene.ID"
 
-GDC <- read.delim("./Data/GDC_large_mapping_TCGA.txt")
+COADREAD <- read.delim("./Data/CopyNum/biospecimen.cart.2019-04-15/aliquot.tsv")#[, c("sample_submitter_id", "aliquot_id")]
+COADREAD1 <- COADREAD[!grepl("10A", COADREAD$sample_submitter_id), ]
+COADREAD1 <- COADREAD1[!grepl("10B", COADREAD1$sample_submitter_id), ]
+COADREAD1 <- COADREAD1[!grepl("11A", COADREAD1$sample_submitter_id), ]
+COADREAD1 <- COADREAD1[!grepl("11B", COADREAD1$sample_submitter_id), ]
 
-levels(GDC$data_type)
+head(COADREAD1) ## need to remove normal samples
+levels(COADREAD1$sample_submitter_id)
+
+temp_df <- combined_df %>% gather(key = "aliquot_id", value = "CopyNum", -Gene.Symbol, -Gene.ID, -Cytoband)
+
+temp_df1 <- merge(COADREAD1[, c("aliquot_id", "sample_submitter_id")], temp_df, by = "aliquot_id")
+temp_df1$Patient.ID <- samptopat(temp_df1$sample_submitter_id)
+temp_df1$Patient.ID <- gsub("-", ".", temp_df1$Patient.ID)
 
 
-temp_df <- combined_df %>% gather(key = "File.ID", value = "CopyNum", -Gene.Symbol, -Gene.ID, -Cytoband)
 
-temp_df[grepl("31a3877d", temp_df$File.ID), ]
+# Check all patients are 01A
+temp_df1[grepl("-10A", temp_df1$sample_submitter_id)]
+# length(temp_df1$sample_submitter_id[grepl("10B", temp_df1$sample_submitter_id)])
+# length(temp_df1$sample_submitter_id[grepl("11A", temp_df1$sample_submitter_id)])
+# length(temp_df1$sample_submitter_id[grepl("11B", temp_df1$sample_submitter_id)])
+length(temp_df1$sample_submitter_id[grepl("01A", temp_df1$sample_submitter_id)])
 
-head(temp_df)
 
-converter$File.ID <- as.factor(converter$case_id)
 
-clin <- read.delim("~/Downloads/clinical.cart.2019-03-28/clinical.tsv")[, c("case_id", "submitter_id")]
-head(clin)
+temp_df2 <- temp_df1[, !'%in%'(colnames(temp_df1), c("aliquot_id", "sample_submitter_id", "Gene.ID"))]
 
-clin$File.ID <- clin$case_id
-clin$Patient.ID <- gsub("-", ".", clin$submitter_id)
-
-temp_df1 <- merge(converter2[, c("Patient.ID", "File.ID")], temp_df, by = "File.ID")
 library(reshape2)
+head(temp_df2)
+COPY <- spread(temp_df2, key = "Patient.ID", value = "CopyNum")
+
+## Should these be used to talk about library sizes?
+# Patient_list <- colnames(COPY_cleaned)[!'%in%'(colnames(COPY_cleaned), "Gene")]
+# write.table(Patient_list, "./Output/Patient_list.txt", row.names = F)
+
+# Gaining second dataframe (Symbols)
+# biocLite("Homo.sapiens", dependencies = T)
+library(Homo.sapiens)
+COPY$Gene <- gsub("\\..*", "", COPY$Gene) #Removes version from Ensembl gene ID
+geneid <- COPY$Gene
+
+genes <- select(Homo.sapiens, keys = geneid, columns = c("SYMBOL", "TXCHROM", "ENTREZID"), 
+                keytype = "ENSEMBL")
+genes <- genes[!duplicated(genes$SYMBOL),]
+
+colnames(COPY)[colnames(COPY) %in% "Gene"] <- "ENSEMBL"
+FPKM <- merge(genes[, c("ENSEMBL", "SYMBOL")], COPY, by = "ENSEMBL") %>% 
+  gather(contains("TCGA"), key = "Patient.ID", value = "FPKM")
+library(reshape2)
+FPKM1 <- dcast(FPKM, SYMBOL ~ Patient.ID, sum, value.var = "FPKM")
+
 
 
 tail(temp_df)

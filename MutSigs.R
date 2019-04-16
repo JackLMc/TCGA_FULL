@@ -319,19 +319,19 @@ muta1 <- subsetMaf(muta, tsb = patients1, isTCGA = T, mafObj = T)
 muta2 <- subsetMaf(muta, tsb = patients2, isTCGA = T, mafObj = T)
 muta3 <- subsetMaf(muta, tsb = patients3, isTCGA = T, mafObj = T)
 
-
+dev.off()
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 set.seed(1)
 pdf("./Figures/Mutation/Recurrent/hiCIRC_muts.pdf")
-geneCloud(muta1, minMut = 48, random.order = F)
+geneCloud(muta1, minMut = no_pats1, random.order = F)
 dev.off()
 
 pdf("./Figures/Mutation/Recurrent/MSS_muts.pdf")
-geneCloud(muta2, minMut = 216, random.order = F)
+geneCloud(muta2, minMut = no_pats2, random.order = F)
 dev.off()
 
 pdf("./Figures/Mutation/Recurrent/MSI_muts.pdf")
-geneCloud(muta3, minMut = 44, random.order = F)
+geneCloud(muta3, minMut = no_pats3, random.order = F)
 dev.off()
 
 save.image("Mutations.RData")
@@ -341,6 +341,10 @@ lollipopPlot(muta1, gene = "APC")
 lollipopPlot(muta2, gene = "APC")
 lollipopPlot(muta3, gene = "APC")
 dev.off()
+
+lollipopPlot(muta1, gene = "TP53")
+lollipopPlot(muta2, gene = "TP53")
+lollipopPlot(muta3, gene = "TP53")
 
 ## Oncoplots
 oncoplot(maf = muta1, top = 10)
@@ -352,7 +356,7 @@ dev.off()
 oncoplot(maf = muta1, top = 10)
 
 
-
+# # All pretty much equal across subtypes
 # # transitions and transversions
 # laml.titv = titv(maf = muta1, plot = FALSE, useSyn = TRUE)
 # #plot titv summary
@@ -367,72 +371,27 @@ oncoplot(maf = muta1, top = 10)
 # plotTiTv(res = laml.titv)
 # dev.off()
 
-somaticInteractions(maf = muta1, top = 25, pvalue = c(0.05, 0.1))
+somaticInteractions(maf = muta1, top = 10, pvalue = c(0.05, 0.1))
 dev.off()
-somaticInteractions(maf = muta2, top = 25, pvalue = c(0.05, 0.1))
+somaticInteractions(maf = muta2, top = 10, pvalue = c(0.05, 0.1))
 dev.off()
-somaticInteractions(maf = muta3, top = 25, pvalue = c(0.05, 0.1))
+somaticInteractions(maf = muta3, top = 10, pvalue = c(0.05, 0.1))
 dev.off()
 
 
-patients1
-muta1.sig = oncodrive(maf = muta1, AACol = 'Protein_Change', minMut = 5, pvalMethod = 'zscore')
-TCGA.A6.3807.het = inferHeterogeneity(maf = muta, tsb = 'TCGA-A6-3807', vafCol = 'i_TumorVAF_WU')
+# Find number of MSS/MSS-hiCIRC patients which are KRAS mutants
+mutation$Patient.ID <- as.factor(mutation$Patient.ID)
+mutation_CRC <- merge(mutation, pat_sub[, c("Patient.ID", "Subtype")]) %>% as.data.frame()
 
-muta@data
+KRAS_muts <- droplevels(subset(mutation_CRC, Hugo_Symbol == "KRAS"))
+nlevels(droplevels(subset(KRAS_muts, Subtype == "MSS"))$Patient.ID)/nlevels(droplevels(subset(mutation_CRC, Subtype == "MSS"))$Patient.ID)
+nlevels(droplevels(subset(KRAS_muts, Subtype == "MSS-hiCIRC"))$Patient.ID)/nlevels(droplevels(subset(mutation_CRC, Subtype == "MSS-hiCIRC"))$Patient.ID)
+nlevels(droplevels(subset(KRAS_muts, Subtype == "MSI-H"))$Patient.ID)/nlevels(droplevels(subset(mutation_CRC, Subtype == "MSI-H"))$Patient.ID)
 
-head(laml.sig)
-
-
-
-plotOncodrive(res = laml.sig, fdrCutOff = 0.1, useFraction = TRUE)
-
-
-
-
-
-
-
-
-
-
-fit__ <- sigs_nmf@fitted %>% as.data.frame()
-
-this <- rownames_to_column(fit__, var  = "change")
-
-head(this)
-
-
-ahip <- this[grepl("TG", this$change),]
-head(ahip)[1:5]
-aho <- colSums(ahip[,!'%in%'(colnames(ahip), "change") ]) %>% as.data.frame()
-
-ah <- gather(aho, contains("TCGA"), key = "Patient.ID", value = "percent") %>% rownames_to_column(., var = "Patient.ID")
-
-colnames(ah) <- c("Patient.ID", "percent")
-
-
-that <- merge(ah, pat_sub, by = "Patient.ID")
-
-
-ggplot(that, aes(x = Subtype, y = percent)) +
-  geom_boxplot(alpha = 0.5, width = 0.2) + 
-  geom_violin(aes(Subtype, fill = Subtype),
-              scale = "width", alpha = 0.8) +
-  scale_fill_manual(values = cbcols) +
-  labs(x = "MSI Status", y = paste("Rank transformed", "FPKM", sep = " ")) +
-  theme_bw() +
-  theme(axis.text = element_text(size = 16)) +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-  theme(legend.direction = "horizontal", legend.position = "top") + 
-  stat_compare_means(comparisons = my_comparisons,
-                     label = "p.signif", method = "wilcox.test")
-
-
-
-
-
-
+KRAS_patients <- mutation_CRC 
+KRAS_patients$KRAS_Mut <- ifelse((mutation_CRC$Patient.ID %in% KRAS_muts$Patient.ID), "Mutant", "Wildtype")
+KRAS <- KRAS_patients[, c("Patient.ID", "KRAS_Mut")][!duplicated(KRAS_patients[, c("Patient.ID", "KRAS_Mut")]), ]
+write.csv(file = "./Output/KRAS_mutants", KRAS, row.names = F)
 
 #### Mutated pathways ####
 if (!requireNamespace("BiocManager", quietly = T))
