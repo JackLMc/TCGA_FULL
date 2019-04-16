@@ -53,13 +53,14 @@ colnames(combined_df)[colnames(combined_df) == "Gene Symbol"] <- "Gene.Symbol"
 colnames(combined_df)[colnames(combined_df) == "Gene ID"] <- "Gene.ID"
 
 COADREAD <- read.delim("./Data/CopyNum/biospecimen.cart.2019-04-15/aliquot.tsv")#[, c("sample_submitter_id", "aliquot_id")]
-COADREAD1 <- COADREAD[!grepl("10A", COADREAD$sample_submitter_id), ]
-COADREAD1 <- COADREAD1[!grepl("10B", COADREAD1$sample_submitter_id), ]
-COADREAD1 <- COADREAD1[!grepl("11A", COADREAD1$sample_submitter_id), ]
-COADREAD1 <- COADREAD1[!grepl("11B", COADREAD1$sample_submitter_id), ]
 
-head(COADREAD1) ## need to remove normal samples
-levels(COADREAD1$sample_submitter_id)
+converter <- read.delim("./Data/Important/gdc_sample_sheet_FPKM.tsv")[, c("Case.ID", "Sample.ID", "Sample.Type")]
+converter1 <- droplevels(subset(converter, Sample.Type != "Solid Tissue Normal" &
+                                  Sample.Type != "Blood Derived Normal"))
+
+COADREAD1 <- COADREAD[COADREAD$sample_submitter_id %in% converter1$Sample.ID, ] %>% droplevels()
+
+# issue is there are multiple aliquot_ids for each sample ID
 
 temp_df <- combined_df %>% gather(key = "aliquot_id", value = "CopyNum", -Gene.Symbol, -Gene.ID, -Cytoband)
 
@@ -67,10 +68,24 @@ temp_df1 <- merge(COADREAD1[, c("aliquot_id", "sample_submitter_id")], temp_df, 
 temp_df1$Patient.ID <- samptopat(temp_df1$sample_submitter_id)
 temp_df1$Patient.ID <- gsub("-", ".", temp_df1$Patient.ID)
 
+output <- data.frame(stringsAsFactors = F)
+c <- 1
+for(i in levels(temp_df1$sample_submitter_id)){
+  work <- droplevels(subset(temp_df1, sample_submitter_id == i))
+  output[c, "sample"] <- i
+  output[c, "num_aliquo"] <- nlevels(work$aliquot_id)
+  c <- c + 1
+}
+
+head(output)
+View(output)
+
+temp_df2 <- temp_df1[!duplicated(temp_df1), ]
+
 
 
 # Check all patients are 01A
-temp_df1[grepl("-10A", temp_df1$sample_submitter_id)]
+length(temp_df1$sample_submitter_id[grepl("10A", temp_df1$sample_submitter_id)])
 # length(temp_df1$sample_submitter_id[grepl("10B", temp_df1$sample_submitter_id)])
 # length(temp_df1$sample_submitter_id[grepl("11A", temp_df1$sample_submitter_id)])
 # length(temp_df1$sample_submitter_id[grepl("11B", temp_df1$sample_submitter_id)])
