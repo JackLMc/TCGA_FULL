@@ -576,7 +576,7 @@ genes_of_interest <- c("IL6", "IL1B", "IL23A", "TGFB1",
                        "CCL2", "CCL5", "CXCL10", "CCL20",
                        "CCR6", "TLR4", "TLR2", "CIITA",
                        "RORC", "IL17A", "IL23R",
-                       "CDC42", "FCAR", "IGHA1")
+                       "CDC42", "FCAR", "IGHA1", "EHMT2")
 
 GOI <- droplevels(MA[MA$SYMBOL %in% genes_of_interest, ]) %>%
   .[, c("Patient.ID", "SYMBOL", "FPKM", "Subtype", "CIRC_Genes")]
@@ -730,5 +730,26 @@ ggplot(work, aes(x = Subtype, y = Enrichment)) +
                      label = "p.signif", method = "wilcox.test")
 
 
+## Gary
+work <- droplevels(subset(GOI1, SYMBOL == "EHMT2" | SYMBOL == "CIITA"))
+work$Logged <- log2(work$FPKM + 1)
 
+work1 <- spread(work[, c("Patient.ID", "Subtype", "SYMBOL", "Logged")], key = "SYMBOL", value = "Logged")
+
+temp_plot <- ggplot(work1, aes(y = EHMT2, x = CIITA))+
+  geom_point(alpha = 0.8, size = 4, colour = "slategray") +
+  labs(x = "Log2(CIITA FPKM + 1)", y = "Log2(EHMT2 FPKM + 1)") +
+  theme_bw() +
+  # geom_text(aes(x = -0.3, y = .75, label = lm_eqn(lm(CIRC_Genes ~ Enrichment, work))), parse = T) +
+  # scale_color_manual(values = cbcols) +
+  geom_smooth(method = "lm", se = F) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.position = "none") +
+  stat_cor()
+
+
+filen <- paste0(i, ".pdf")
+ggplot2:: ggsave("CIITA_EHMT2_correl.pdf", plot = temp_plot, device = "pdf",
+                 path = "./Figures/Genes_of_interest/Correlations",
+                 height = 6, width = 6)
 
