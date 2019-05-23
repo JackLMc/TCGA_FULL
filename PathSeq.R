@@ -130,15 +130,10 @@ pathseq4 <-  pathseq4[, c("Patient.ID", "kingdom", "type", "name",
 
 
 library(reshape2)
-str(pathseq4)
-
  
 droplevels(subset(pathseq4, Subtype == "MSS"))$Patient.ID %>% nlevels()
 droplevels(subset(pathseq4, Subtype == "MSS-hiCIRC"))$Patient.ID %>% nlevels()
 droplevels(subset(pathseq4, Subtype == "MSI-H"))$Patient.ID %>% nlevels()
-
-save.image("./PathSeq/PathSeq.RData")
-load("./PathSeq/PathSeq.RData")
 
 empty_ <- data.frame("name" = character(),
                      "num_lev" = double(),
@@ -150,19 +145,12 @@ for(i in levels(pathseq4$name)){
   empty_[c, "name"] <- i
   empty_[c, "num_lev"] <- nlevels(working$Patient.ID)
   c <- c + 1
-}
+  }
 
-head(empty_)
-
-this <- droplevels(subset(pathseq4, name == "[Bacillus_thuringiensis]_serovar_konkukian"))
-nlevels(this$Patient.ID)
+empty_[empty_$num_lev != 529, ]
 
 
 try <- pathseq4[grepl("Clostridium", pathseq4$name, ignore.case = T), ] %>% droplevels()
-levels(try$name)
-
-
-head(try)
 
 Ecol <- droplevels(subset(pathseq4, name == "Buty"))
 
@@ -175,18 +163,37 @@ Ecol <- droplevels(subset(pathseq4, name == "Buty"))
 
 
 
-# Combine stats into a list
+# Combine stats into a list, not working because some bugs are 0
+maximum_nums <- data.frame(stringsAsFactors = F)
+c <- 1
+for(i in levels(pathseq4$name)){
+  print(i)
+  work <- droplevels(subset(pathseq4, name == i))
+  max_num <- max(work$score)
+  maximum_nums[c, "name"] <- i
+  maximum_nums[c, "max"] <- max_num
+  c <- c + 1
+}
+
+remove_these <- droplevels(subset(maximum_nums, max == 0))$name
+pathseq5 <- pathseq4[!('%in%'(pathseq4$name, remove_these)), ] %>% droplevels()
+
+# save.image("./PathSeq/PathSeq.RData")
+load("./PathSeq/PathSeq.RData")
+
+library(ggpubr)
 stat_list <- list()
 c <- 1
-for(i in levels(pathseq4$name)) {
+for(i in levels(pathseq5$name)){
   name <- basename(i)
   cat("Processing", i, "\n")
-  workingon <- droplevels(subset(pathseq4, name == i))
+  workingon <- droplevels(subset(pathseq5, name == i))
   # assign your ggplot call to the i"th position in the list
   x <- compare_means(score ~ Subtype, data = workingon, method = "wilcox.test")
   y <- as.data.frame(x)
   stat_list[[i]]  <- cbind(i, y)
   c <- c + 1}
+
 
 # Bind and remove row names
 z <- do.call(rbind, stat_list)
