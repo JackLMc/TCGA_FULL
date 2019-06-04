@@ -113,7 +113,7 @@ pathseq3 <- rbind(pathseq2, missing_data)
 
 ############# Diversity indexes
 div <- droplevels(subset(pathseq3, ))
-
+library(vegan)
 
 thesecols <- c("Patient.ID", "name", "reads")
 
