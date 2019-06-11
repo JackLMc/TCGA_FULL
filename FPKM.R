@@ -363,7 +363,7 @@ dcast(pat_sub, Subtype ~., length)
 
 ##### GENESETS #####
 # Bact
-FPKM2$SYMBOL[grepl("NLRC", FPKM2$SYMBOL)]
+FPKM2$SYMBOL[grepl("CPXCR1", FPKM2$SYMBOL)]
 book_list <- list()
 book_list[["SAAs"]] <- c("TLR4", "LY96"#,
                          #"TIRAP"#, "MYD88"
@@ -374,7 +374,7 @@ book_list[["SAAs"]] <- c("TLR4", "LY96"#,
                          )
 
 a_list <- list()
-a_list[["test"]] <- c( "IKZF1", "IKZF3")
+a_list[["test"]] <- c("")
 
 library(GSVA)
 Enrichment_book <- gsva(FPKM3, a_list)
@@ -632,16 +632,16 @@ for(i in 1:length(genes_of_interest)){
                    height = 6, width = 6)}
 
 FPKM2$SYMBOL[grepl("B2M", FPKM2$SYMBOL)]
-GOI <- droplevels(subset(MA, SYMBOL == "TLR4"))
+GOI <- droplevels(subset(MA, SYMBOL == "CD1C"))
 
-hiCIRC <- droplevels(subset(GOI, Subtype == "MSS-hiCIRC"))
-mss <- droplevels(subset(GOI, Subtype == "MSS"))
-msi <- droplevels(subset(GOI, Subtype == "MSI-H"))
-
-
-median(hiCIRC$FPKM)
-median(mss$FPKM)
-median(msi$FPKM)
+# hiCIRC <- droplevels(subset(GOI, Subtype == "MSS-hiCIRC"))
+# mss <- droplevels(subset(GOI, Subtype == "MSS"))
+# msi <- droplevels(subset(GOI, Subtype == "MSI-H"))
+# 
+# 
+# median(hiCIRC$FPKM)
+# median(mss$FPKM)
+# median(msi$FPKM)
 
 GOI$Rank <- rank(GOI$FPKM)
 ggplot(GOI, aes(x = Subtype, y = Rank)) +
@@ -659,7 +659,7 @@ ggplot(GOI, aes(x = Subtype, y = Rank)) +
 
 library(tidyverse)
 library(ggpubr)
-# OX40 and OX40L are increased in MSS-hiCIORC patients  
+# OX40 and OX40L, and CD1D are selectively increased in MSS-hiCIORC patients  
 autoph<- read.delim("~/Downloads/geneset.txt", header = F)
 head(autoph)
 autoph <- autoph$V1
@@ -752,4 +752,108 @@ filen <- paste0(i, ".pdf")
 ggplot2:: ggsave("CIITA_EHMT2_correl.pdf", plot = temp_plot, device = "pdf",
                  path = "./Figures/Genes_of_interest/Correlations",
                  height = 6, width = 6)
+
+
+
+
+# Fatty acid metabolism
+## FAM
+FAM  <- read.csv("./Exploratory_Data/Genesets/GO_term_summary_20190603_065405.csv")
+
+FAM_list <- list()
+c <- 1
+for(i in levels(FAM$Annotated.Term)){
+  print(i)
+  work <- droplevels(subset(FAM, Annotated.Term == i))
+  Genes <- toupper(levels(work$Symbol))
+  FAM_list[[i]] <- Genes
+  c <- c + 1
+}
+
+
+library(GSVA)
+Enrichment_book <- gsva(FPKM3, FAM_list)
+Enrichment_book1 <- Enrichment_book %>% as.data.frame() %>%
+  rownames_to_column(., var = "Geneset") %>%
+  gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
+  spread(., key = "Geneset", value = "Enrich")
+
+
+Enrichment_book1$Patient.ID <- as.factor(Enrichment_book1$Patient.ID)
+Enrich <- merge(pat_sub, Enrichment_book1, by = "Patient.ID")
+
+Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -CIRC_Genes, -Patient.ID, -Subtype)
+Enrich1$Parameter <- as.factor(Enrich1$Parameter)
+
+for(i in levels(Enrich1$Parameter)){
+  print(i)
+  work <- droplevels(subset(Enrich1, Parameter == i))
+  temp_plot <- ggplot(work, aes(x = Subtype, y = Enrichment)) +
+    geom_boxplot(alpha = 0.5, width = 0.2) + 
+    geom_violin(aes(Subtype, fill = Subtype),
+                scale = "width", alpha = 0.8) +
+    scale_fill_manual(values = cbcols) +
+    labs(x = "Subtype", y = paste(i, "enrichment score")) +
+    theme_bw() +
+    theme(axis.text = element_text(size = 16)) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(legend.direction = "horizontal", legend.position = "top") + 
+    stat_compare_means(comparisons = my_comparisons,
+                       label = "p.signif", method = "wilcox.test")
+  filen <- paste0(i, ".pdf")
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
+                   path = "./Figures/Gene_Sets/Enrichment/FAM",
+                   height = 6, width = 6)}
+
+
+# Phagocytosis
+## Phago
+Phago  <- read.csv("./Exploratory_Data/Genesets/GO_term_summary_20190603_065405.csv")
+
+Phago_list <- list()
+c <- 1
+for(i in levels(Phago$Annotated.Term)){
+  print(i)
+  work <- droplevels(subset(Phago, Annotated.Term == i))
+  Genes <- toupper(levels(work$Symbol))
+  Phago_list[[i]] <- Genes
+  c <- c + 1
+}
+
+
+library(GSVA)
+Enrichment_book <- gsva(FPKM3, Phago_list)
+Enrichment_book1 <- Enrichment_book %>% as.data.frame() %>%
+  rownames_to_column(., var = "Geneset") %>%
+  gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
+  spread(., key = "Geneset", value = "Enrich")
+
+
+Enrichment_book1$Patient.ID <- as.factor(Enrichment_book1$Patient.ID)
+Enrich <- merge(pat_sub, Enrichment_book1, by = "Patient.ID")
+
+Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -CIRC_Genes, -Patient.ID, -Subtype)
+Enrich1$Parameter <- as.factor(Enrich1$Parameter)
+
+for(i in levels(Enrich1$Parameter)){
+  print(i)
+  work <- droplevels(subset(Enrich1, Parameter == i))
+  temp_plot <- ggplot(work, aes(x = Subtype, y = Enrichment)) +
+    geom_boxplot(alpha = 0.5, width = 0.2) + 
+    geom_violin(aes(Subtype, fill = Subtype),
+                scale = "width", alpha = 0.8) +
+    scale_fill_manual(values = cbcols) +
+    labs(x = "Subtype", y = paste(i, "enrichment score")) +
+    theme_bw() +
+    theme(axis.text = element_text(size = 16)) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(legend.direction = "horizontal", legend.position = "top") + 
+    stat_compare_means(comparisons = my_comparisons,
+                       label = "p.signif", method = "wilcox.test")
+  filen <- paste0(i, ".pdf")
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
+                   path = "./Figures/Gene_Sets/Enrichment/Phago",
+                   height = 6, width = 6)}
+
+
 
