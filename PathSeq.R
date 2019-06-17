@@ -22,7 +22,6 @@ filelist1 <- sapply(thousand.folders, function(x){
 filelist = unlist(filelist1)
 
 
-
 # Read in files and combine
 lists <- lapply(filelist, read.delim, header = T, stringsAsFactors = F)
 listsDF <- lists
@@ -43,6 +42,11 @@ GDC_convert_n <- droplevels(subset(GDC_convert, Sample.Type == "Blood Derived No
                                      Sample.Type == "Solid Tissue Normal"))
 
 
+
+GDC_convert_t$Patient.ID <- as.factor(GDC_convert_t$Patient.ID)
+GDC_convert_t$File.Name<- as.factor(GDC_convert_t$File.Name)
+GDC_convert_t <- droplevels(GDC_convert_t)
+
 lists1 <- lists[names(lists) %in% GDC_convert_t$File.Name]
 lists1[["TCGA-AA-3846-01A-01W-0995-10_Illumina_gdc_realn.bam"]]
 
@@ -57,14 +61,17 @@ lists2 <- lapply(names(lists1a),
 multi_join <- function(list_of_loaded_data, join_func, ...){
   require("dplyr")
   output <- Reduce(function(x, y) {join_func(x, y, ...)}, list_of_loaded_data)
-  return(output)
-}
+  return(output)}
 
 pathseq <- multi_join(lists2, full_join, by = c("tax_id", "taxonomy", "type", "name",
                                                     "kingdom", "score", "score_normalized",
                                                     "reads", "unambiguous", "reference_length", "File.Name"))
 
-pathseq1 <- merge(pathseq, GDC_convert, by = "File.Name") %>% droplevels()
+pathseq1 <- merge(pathseq, GDC_convert_t, by = "File.Name") %>% droplevels()
+head(pathseq1)
+
+
+
 pathseq1$Patient.ID <- as.factor(pathseq1$Patient.ID)
 pathseq1$kingdom <- as.factor(pathseq1$kingdom)
 pathseq1$name <- as.factor(pathseq1$name)
@@ -75,8 +82,9 @@ pathseq1$type <- as.factor(pathseq1$type)
 pathseq2 <- pathseq1[, c("Patient.ID", "name", "score",
                          "score_normalized", "reads", "kingdom", "type", "unambiguous", "reference_length")]
 
+
 # Fill in the missing data for microbes not found in those samples
-microbe_taxa <- pathseq1[, c("kingdom", "type", "name", "reference_length")]
+microbe_taxa <- pathseq1[, c("kingdom", "type", "name")]
 microbe_taxa <- microbe_taxa[!duplicated(microbe_taxa), ]
 
 missing_microbes <- list()
@@ -87,8 +95,10 @@ for(i in levels(pathseq2$Patient.ID)){
   all_microbes <- as.character(levels(pathseq2$name))
   see <- all_microbes[!(all_microbes %in% pat_microbes)]
   missing <- ifelse((see != 0), c(see), "None")
-  missing_microbes[[i]] <- missing
+  missing_microbes[[i]] <- see
   }
+
+
 
 missing_microbes1 <- lapply(missing_microbes, as.data.frame, stringsAsFactors = F)
 missing_microbes2 <- lapply(missing_microbes1, setNames, c("name"))
@@ -107,19 +117,53 @@ missing_microbes3 <- mapply(cbind, missing_microbes3, "unambiguous" = 0, SIMPLIF
 
 missing_data <- multi_join(missing_microbes3, full_join, by = c("Patient.ID", "name", "score", "score_normalized",
                                                 "reads", "unambiguous"))
-missing_data <- merge(missing_data, microbe_taxa, by = "name")
-pathseq3 <- rbind(pathseq2, missing_data)
+missing_data1 <- merge(missing_data, microbe_taxa, by = c("name"))
+pathseq3 <- rbind(pathseq2, missing_data1)
+
+
+
+## Overall abundances
+superk <-droplevels(subset(pathseq3, type == "superkingdom"))
+pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
+SK <- merge(superk, pat_sub, by = "Patient.ID")
+for(i in levels(SK$kingdom)){
+  print(i)
+  work <- droplevels(subset(SK, kingdom == i))
+  temp_plot <- ggplot(work, aes(x = Subtype, y = score_normalized)) +
+    geom_boxplot(alpha = 0.5, width = 0.2) + 
+    geom_violin(aes(Subtype, fill = Subtype),
+                scale = "width", alpha = 0.8) +
+    scale_fill_manual(values = cbcols) +
+    labs(x = "Subtype", y = paste(i, "Normalised score")) +
+    theme_bw() +
+    theme(axis.text = element_text(size = 16)) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(legend.direction = "horizontal", legend.position = "top") + 
+    stat_compare_means(comparisons = my_comparisons,
+                       label = "p.signif", method = "wilcox.test")
+  filen <- paste0(i, ".pdf")
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
+                   path = "./PathSeq/Figures/Superkingdom",
+                   height = 6, width = 6)
+  }
 
 
 ############# Diversity indexes
-div <- droplevels(subset(pathseq3, ))
+
+head(pathseq3)
+div <- droplevels(subset(pathseq3, kingdom == "Bacteria" & type == "species"))
+
 library(vegan)
-
 thesecols <- c("Patient.ID", "name", "reads")
+div1 <- div[, colnames(div) %in% thesecols]
+head(div1)
 
-div1 <- 
+div2 <- spread(div1, key = "name", value = "reads")
+
+this <- div1[duplicated(div1), ]
 
 
+head(this)
 
 
 
