@@ -1,19 +1,4 @@
 # PathSeq analysis
-library(UsefulFunctions)
-library(tidyverse)
-library(ggpubr)
-
-my_comparisons <- list(c("MSS-hiCIRC", "MSI-H"),
-                       c("MSS-hiCIRC", "MSS"),
-                       c("MSI-H", "MSS"))
-cbcols <- c("MSS-hiCIRC" = "#999999",
-            "MSI-H" = "#56B4E9",
-            "MSS" = "#009E73",
-            "MSI-L" = "#E69F00")
-
-
-
-
 # Looking for the files
 ## Mount the drive
 thousand.folders <- list.dirs(path = "/Volumes/2018/beggsa-tcgacolorectal/download_rest/bacterial_project/results", full.names = T)
@@ -48,8 +33,6 @@ GDC_convert_t$File.Name<- as.factor(GDC_convert_t$File.Name)
 GDC_convert_t <- droplevels(GDC_convert_t)
 
 lists1 <- lists[names(lists) %in% GDC_convert_t$File.Name]
-lists1[["TCGA-AA-3846-01A-01W-0995-10_Illumina_gdc_realn.bam"]]
-
 lists1a <- lists1[sapply(lists1, function(x) dim(x)[1]) > 0]
 lists2 <- lapply(names(lists1a), 
                   function(n, x){
@@ -66,46 +49,68 @@ multi_join <- function(list_of_loaded_data, join_func, ...){
 pathseq <- multi_join(lists2, full_join, by = c("tax_id", "taxonomy", "type", "name",
                                                     "kingdom", "score", "score_normalized",
                                                     "reads", "unambiguous", "reference_length", "File.Name"))
-
 pathseq1 <- merge(pathseq, GDC_convert_t, by = "File.Name") %>% droplevels()
-head(pathseq1)
-
-
-
 pathseq1$Patient.ID <- as.factor(pathseq1$Patient.ID)
-pathseq1$kingdom <- as.factor(pathseq1$kingdom)
-pathseq1$name <- as.factor(pathseq1$name)
-pathseq1$taxonomy <- as.factor(pathseq1$taxonomy)
-pathseq1$Patient.ID <- as.factor(pathseq1$Patient.ID)
-pathseq1$type <- as.factor(pathseq1$type)
+pathseq1a <- droplevels(subset(pathseq1, Sample.Type == "Primary Tumor"))
 
-pathseq2 <- pathseq1[, c("Patient.ID", "name", "score",
-                         "score_normalized", "reads", "kingdom", "type", "unambiguous", "reference_length")]
+# Num_Files <- data.frame()
+# c <- 1
+# for(i in levels(pathseq1a$Patient.ID)){
+#   print(i)
+#   work <- droplevels(subset(pathseq1a, Patient.ID == i))
+#   num_files <- nlevels(work$File.ID)
+#   Num_Files[c, "Patient.ID"] <- i
+#   Num_Files[c, "Number"] <- num_files
+#   c <- c + 1
+# }
+# 
+# more_than_one <- droplevels(subset(Num_Files, Number > 1))$Patient.ID
+# info_more <- GDC_convert_t[GDC_convert_t$Patient.ID %in% more_than_one, ]
+# info_more$Sample.ID <- gsub("_hg19.*$|_Illumina.*$|_gdc.*$", "", info_more$File.Name)
+# info_more1 <- subset(info_more, !grepl("_gapfillers", info_more$Sample.ID), drop = T) %>% droplevels() 
+# info_more1$File.Name <- as.factor(info_more1$File.Name)
 
+
+
+# Use Sample IDs
+path
+pathseq2 <- factorthese(pathseq1a, c("Patient.ID", "kingdom", "name", "taxonomy", "type", "File.Name"))
+pathseq2$Sample.ID <- gsub("_hg19.*$|_Illumina.*$|_gdc.*$", "", pathseq2$File.Name)
+pathseq2a <- subset(pathseq2, !grepl("_gapfillers", pathseq2$Sample.ID), drop = T) %>% droplevels() 
+
+pathseq2$File.Name <- as.factor(pathseq2$File.Name)
+pathseq2a$File.Name <- as.factor(pathseq2a$File.Name)
+
+# nlevels(pathseq2$File.Name) 
+# nlevels(pathseq2a$File.Name) # This is a lot of patients to lose. Need to rerun the analysis after merging the patient files
+# Droplevels for the ones I have CIRC scored
+pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
+pathseq2b <- droplevels(pathseq2a[pathseq2a$Patient.ID %in% pat_sub$Patient.ID, ])
+pathseq3 <- pathseq2b[, c("Patient.ID", "name", "score",
+                         "score_normalized", "reads", "kingdom", "type", "unambiguous", "Sample.ID")]
+pathseq3$Sample.ID <- as.factor(pathseq3$Sample.ID)
 
 # Fill in the missing data for microbes not found in those samples
 microbe_taxa <- pathseq1[, c("kingdom", "type", "name")]
 microbe_taxa <- microbe_taxa[!duplicated(microbe_taxa), ]
 
 missing_microbes <- list()
-for(i in levels(pathseq2$Patient.ID)){
+for(i in levels(pathseq3$Sample.ID)){
   print(i)
-  work <- droplevels(subset(pathseq2, Patient.ID == i))
+  work <- droplevels(subset(pathseq3, Sample.ID == i))
   pat_microbes <- as.character(levels(work$name))
-  all_microbes <- as.character(levels(pathseq2$name))
+  all_microbes <- as.character(levels(pathseq3$name))
   see <- all_microbes[!(all_microbes %in% pat_microbes)]
   missing <- ifelse((see != 0), c(see), "None")
   missing_microbes[[i]] <- see
   }
-
-
 
 missing_microbes1 <- lapply(missing_microbes, as.data.frame, stringsAsFactors = F)
 missing_microbes2 <- lapply(missing_microbes1, setNames, c("name"))
 
 missing_microbes3 <- lapply(names(missing_microbes2), 
                  function(n, x){
-                   x[[n]]$Patient.ID <- n
+                   x[[n]]$Sample.ID <- n
                    return (x[[n]])},
                  missing_microbes2)
 
@@ -115,16 +120,37 @@ missing_microbes3 <- mapply(cbind, missing_microbes3, "reads" = 0, SIMPLIFY = F)
 missing_microbes3 <- mapply(cbind, missing_microbes3, "unambiguous" = 0, SIMPLIFY = F)
 
 
-missing_data <- multi_join(missing_microbes3, full_join, by = c("Patient.ID", "name", "score", "score_normalized",
+missing_data <- multi_join(missing_microbes3, full_join, by = c("Sample.ID", "name", "score", "score_normalized",
                                                 "reads", "unambiguous"))
 missing_data1 <- merge(missing_data, microbe_taxa, by = c("name"))
-pathseq3 <- rbind(pathseq2, missing_data1)
+
+samp_patient <- pathseq3[, c("Patient.ID", "Sample.ID")]
+samp_pat <- samp_patient[!duplicated(samp_patient), ]
 
 
+missing_data2 <- merge(missing_data1, samp_pat, by = "Sample.ID")
+pathseq4 <- rbind(pathseq3, missing_data2)
+
+# save.image("./PathSeq/PathSeq.RData")
+
+##### LOAD IT UP ####
+library(UsefulFunctions)
+library(tidyverse)
+library(ggpubr)
+
+my_comparisons <- list(c("MSS-hiCIRC", "MSI-H"),
+                       c("MSS-hiCIRC", "MSS"),
+                       c("MSI-H", "MSS"))
+cbcols <- c("MSS-hiCIRC" = "#999999",
+            "MSI-H" = "#56B4E9",
+            "MSS" = "#009E73",
+            "MSI-L" = "#E69F00")
+
+load("./PathSeq/PathSeq.RData")
 
 ## Overall abundances
-superk <-droplevels(subset(pathseq3, type == "superkingdom"))
-pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
+superk <- droplevels(subset(pathseq4, type == "superkingdom"))
+
 SK <- merge(superk, pat_sub, by = "Patient.ID")
 for(i in levels(SK$kingdom)){
   print(i)
@@ -149,26 +175,126 @@ for(i in levels(SK$kingdom)){
 
 
 ############# Diversity indexes
-
-head(pathseq3)
-div <- droplevels(subset(pathseq3, kingdom == "Bacteria" & type == "species"))
+samp_pat_sub <- merge(samp_pat, pat_sub, by = "Patient.ID")
+pathseq4a <- droplevels(subset(pathseq4, kingdom != "root"))
+pathseq4b <- pathseq4a[pathseq4a$Patient.ID %in% samp_pat_sub$Patient.ID, ]
 
 library(vegan)
-thesecols <- c("Patient.ID", "name", "reads")
+
+for(i in levels(pathseq4b$kingdom)){
+  print(i)
+  work <- droplevels(subset(pathseq4b, kingdom == i & type == "species"))
+  thesecols <- c("Sample.ID", "name", "reads")
+  div1 <- work[, colnames(work) %in% thesecols]
+  div2 <- spread(div1, key = "name", value = "reads") %>% column_to_rownames(., var = "Sample.ID")
+  div3 <- diversity(div2, index = "shannon") %>% as.data.frame() %>% rownames_to_column(., var = "Sample.ID")
+  colnames(div3)[colnames(div3) == "."] <- "shannon"
+  div4 <- merge(div3, samp_pat_sub, by = "Sample.ID")
+  
+  temp_plot <- ggplot(div4, aes(x = Subtype, y = shannon)) +
+    geom_boxplot(alpha = 0.5, width = 0.2) + 
+    geom_violin(aes(Subtype, fill = Subtype),
+                scale = "width", alpha = 0.8) +
+    scale_fill_manual(values = cbcols) +
+    labs(x = "Subtype", y = paste(i, "Shannon diversity")) +
+    theme_bw() +
+    theme(axis.text = element_text(size = 16)) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(legend.direction = "horizontal", legend.position = "top") + 
+    stat_compare_means(comparisons = my_comparisons,
+                       label = "p.signif", method = "wilcox.test")
+  filen <- paste0(i, ".pdf")
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
+                   path = "./PathSeq/Figures/Diversity",
+                   height = 6, width = 6)
+  }
+
+
+div <- droplevels(subset(pathseq4b, type == "species"))
+library(vegan)
+thesecols <- c("Sample.ID", "name", "reads")
 div1 <- div[, colnames(div) %in% thesecols]
-head(div1)
+div2 <- spread(div1, key = "name", value = "reads") %>%
+  column_to_rownames(., var = "Sample.ID") %>%
+  diversity(., index = "shannon") %>% as.data.frame() %>% rownames_to_column(., var = "Sample.ID")
 
-div2 <- spread(div1, key = "name", value = "reads")
+colnames(div2)[colnames(div2) == "."] <- "shannon"
+div4 <- merge(div3, samp_pat_sub, by = "Sample.ID")
 
-this <- div1[duplicated(div1), ]
+pdf("./PathSeq/Figures/Diversity/Root.pdf", height = 6, width = 6)
+ggplot(div4, aes(x = Subtype, y = shannon)) +
+  geom_boxplot(alpha = 0.5, width = 0.2) + 
+  geom_violin(aes(Subtype, fill = Subtype),
+              scale = "width", alpha = 0.8) +
+  scale_fill_manual(values = cbcols) +
+  labs(x = "Subtype", y = "root Shannon index") +
+  theme_bw() +
+  theme(axis.text = element_text(size = 16)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.direction = "horizontal", legend.position = "top") + 
+  stat_compare_means(comparisons = my_comparisons,
+                     label = "p.signif", method = "wilcox.test")
+
+dev.off()
 
 
-head(this)
+# PCA of data
+set.seed(1)
+head(pathseq4b)
+
+prin <- droplevels(subset(pathseq4b, type == "species"))
+thesecols <- c("Sample.ID", "name", "reads")
+prin1 <- prin[, colnames(prin) %in% thesecols]
+prin1a <- prin1[prin1$Sample.ID %in% samp_pat_sub$Sample.ID, ]
+nlevels(prin1a$Sample.ID)
+
+prin2 <- spread(prin1, key = "name", value = "reads") %>% column_to_rownames(., var = "Sample.ID")
+prin_comp <- prcomp(prin2, scale. = T)
+
+library(ggbiplot)
+pdf("./PathSeq/Figures/.pdf", height = 6, width = 6)
+ggbiplot(prin_comp, obs.scale = 1, var.scale = 1, 
+         #groups = Pcluster,
+         circle = T, var.axes = F) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.direction = "horizontal", legend.position = "top") 
+dev.off()
+
+## Remove the outlier
+
+rotations <- prin_comp$x %>% as.data.frame() %>% rownames_to_column(., var = "Sample.ID")
+outlier <- droplevels(subset(rotations, PC1 < -400 & PC2 < -200))$Sample.ID
+
+prin3 <- prin2[!('%in%'(rownames(prin2), outlier)), ]
+prin4 <- prin3[, colSums(prin3 != 0) > 0]
+prin_comp <- prcomp(prin4, scale. = T)
+
+
+samp_pat_sub1 <- droplevels(subset(samp_pat_sub, Sample.ID != outlier))
+
+ggbiplot(prin_comp, obs.scale = 1, var.scale = 1, 
+        groups = samp_pat_sub1$Subtype,
+         circle = T, var.axes = F) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.direction = "horizontal", legend.position = "top") 
+dev.off()
+
+
+## PCA doesn't find it...
 
 
 
+##### Take into account taxonomy ####
+# data is rownames(species), Genus, Family, Order, Superorder. Subclass
+
+data(dune)
+data(dune.taxon)
+taxdis <- taxa2dist(dune.taxon, varstep=TRUE)
 
 
+mod <- taxondive(dune, taxdis)
 
 
 # ## Double-check
@@ -184,9 +310,8 @@ head(this)
 
 # Merge with the pat_sub file
 pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
-pathseq4 <- merge(pathseq3, pat_sub, by = "Patient.ID")
-pathseq4 <-  pathseq4[, c("Patient.ID", "kingdom", "type", "name",
-                          "reference_length", "score", "score_normalized",
+pathseq4 <- merge(pathseq3, samp_pat_sub, by = "Patient.ID")
+pathseq4 <-  pathseq4[, c("Patient.ID", "kingdom", "type", "name", "score", "score_normalized",
                           "reads", "unambiguous", "CIRC_Genes", "Subtype")] %>% droplevels()
 
 
