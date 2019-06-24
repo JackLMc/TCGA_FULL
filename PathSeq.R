@@ -209,7 +209,6 @@ for(i in levels(pathseq4b$kingdom)){
                    height = 6, width = 6)
   }
 
-
 div <- droplevels(subset(pathseq4b, type == "species"))
 library(vegan)
 thesecols <- c("Sample.ID", "name", "reads")
@@ -240,7 +239,6 @@ dev.off()
 
 # PCA of data
 set.seed(1)
-head(pathseq4b)
 
 prin <- droplevels(subset(pathseq4b, type == "species"))
 thesecols <- c("Sample.ID", "name", "reads")
@@ -262,7 +260,6 @@ ggbiplot(prin_comp, obs.scale = 1, var.scale = 1,
 dev.off()
 
 ## Remove the outlier
-
 rotations <- prin_comp$x %>% as.data.frame() %>% rownames_to_column(., var = "Sample.ID")
 outlier <- droplevels(subset(rotations, PC1 < -400 & PC2 < -200))$Sample.ID
 
@@ -284,7 +281,34 @@ dev.off()
 
 ## PCA doesn't find it...
 
+# tSNE
+## Perform Phenograph and kmeans
+library(Rphenograph)
+set.seed(1)
+a <- cbind(prin4, cluster = factor(Rphenograph(prin4)[[2]]$membership))
 
+clusterP <- a[, "cluster"]
+
+# RTsne
+set.seed(1)
+library(Rtsne)
+tsne_out <- Rtsne(as.matrix(prin4))
+tsne_dimensions <- as.data.frame(tsne_out$Y)
+colnames(tsne_dimensions) <- c("Dim1", "Dim2")
+
+
+## tSNE plot - looks the same as PCA just on a different axis
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+# pdf("./Figures/Clustering/CIRC_PhenoGraph_tsNE.pdf")
+ggplot(tsne_dimensions, aes(x = Dim1, y = Dim2, colour = samp_pat_sub1$Subtype)) +
+  geom_point(size = 4, alpha = 0.8, pch = 20) +
+  theme_bw() +
+  theme(axis.text = element_text(size = 16)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.direction = "horizontal", legend.position = "top")
+dev.off()
+
+# tSNE also doesn't find distinct clusters of patients based on the MSS status
 
 ##### Take into account taxonomy ####
 # data is rownames(species), Genus, Family, Order, Superorder. Subclass
