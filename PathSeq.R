@@ -50,7 +50,7 @@ pathseq <- multi_join(lists2, full_join, by = c("tax_id", "taxonomy", "type", "n
                                                     "reads", "unambiguous", "reference_length", "File.Name"))
 pathseq1 <- merge(pathseq, GDC_convert, by = "File.Name") %>% droplevels()
 pathseq1$Patient.ID <- as.factor(pathseq1$Patient.ID)
-pathseq1a <- droplevels(subset(pathseq1, Sample.Type == "Primary Tumor"))
+# pathseq1a <- droplevels(subset(pathseq1, Sample.Type == "Primary Tumor"))
 
 # Num_Files <- data.frame()
 # c <- 1
@@ -72,8 +72,7 @@ pathseq1a <- droplevels(subset(pathseq1, Sample.Type == "Primary Tumor"))
 
 
 # Use Sample IDs
-path
-pathseq2 <- factorthese(pathseq1a, c("Patient.ID", "kingdom", "name", "taxonomy", "type", "File.Name"))
+pathseq2 <- factorthese(pathseq1, c("Patient.ID", "kingdom", "name", "taxonomy", "type", "File.Name"))
 pathseq2$Sample.ID <- gsub("_hg19.*$|_Illumina.*$|_gdc.*$", "", pathseq2$File.Name)
 pathseq2a <- subset(pathseq2, !grepl("_gapfillers", pathseq2$Sample.ID), drop = T) %>% droplevels() 
 
@@ -119,8 +118,14 @@ missing_microbes3 <- mapply(cbind, missing_microbes3, "reads" = 0, SIMPLIFY = F)
 missing_microbes3 <- mapply(cbind, missing_microbes3, "unambiguous" = 0, SIMPLIFY = F)
 
 
-missing_data <- multi_join(missing_microbes3, full_join, by = c("Sample.ID", "name", "score", "score_normalized",
+missing_data_a <- multi_join(missing_microbes3[1:500], full_join, by = c("Sample.ID", "name", "score", "score_normalized",
                                                 "reads", "unambiguous"))
+
+missing_data_b <- multi_join(missing_microbes3[501:1082], full_join, by = c("Sample.ID", "name", "score", "score_normalized",
+                                                                         "reads", "unambiguous"))
+
+missing_data <- rbind(missing_data_a, missing_data_b)
+
 missing_data1 <- merge(missing_data, microbe_taxa, by = c("name"))
 
 samp_patient <- pathseq3[, c("Patient.ID", "Sample.ID")]
