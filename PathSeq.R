@@ -1,4 +1,5 @@
-# PathSeq analysis
+# PathSeq analysis ----
+# Preprocessing ----
 # Looking for the files
 ## Mount the drive
 thousand.folders <- list.dirs(path = "/Volumes/2018/beggsa-tcgacolorectal/download_rest/bacterial_project/results", full.names = T)
@@ -19,6 +20,8 @@ names(lists) <- gsub("pathseq.txt", "bam", names(lists))
 # kingdom, score, score_normalized, reads, unambiguous, reference_length)
 GDC_convert <- read.delim("./Data/PathSeq/gdc_sample_sheet.2019-04-10.tsv")
 GDC_convert$Patient.ID <- gsub("-", ".", GDC_convert$Case.ID)
+GDC_convert$Sample.ID <- gsub("_hg19.*$|_Illumina.*$|_gdc.*$", "", GDC_convert$File.Name)
+
 
 # colnames(GDC_convert)[colnames(GDC_convert) == "cases.0.samples.0.portions.0.analytes.0.aliquots.0.submitter_id"] <- "file.ID"
 GDC_convert_t <- droplevels(subset(GDC_convert, Sample.Type != "Blood Derived Normal" &
@@ -125,19 +128,15 @@ missing_data_b <- multi_join(missing_microbes3[501:1082], full_join, by = c("Sam
                                                                          "reads", "unambiguous"))
 
 missing_data <- rbind(missing_data_a, missing_data_b)
-
 missing_data1 <- merge(missing_data, microbe_taxa, by = c("name"))
-
 samp_patient <- pathseq3[, c("Patient.ID", "Sample.ID")]
 samp_pat <- samp_patient[!duplicated(samp_patient), ]
-
-
 missing_data2 <- merge(missing_data1, samp_pat, by = "Sample.ID")
 pathseq4 <- rbind(pathseq3, missing_data2)
 
 # save.image("./PathSeq/PathSeq.RData")
 
-##### LOAD IT UP ####
+# LOAD IT UP ----
 library(UsefulFunctions)
 library(tidyverse)
 library(ggpubr)
@@ -152,8 +151,9 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
 
 load("./PathSeq/PathSeq.RData")
 
-## Overall abundances
-superk <- droplevels(subset(pathseq4, type == "superkingdom"))
+# Overall abundances ----
+pathseq_tum <- pathseq4[!('%in%'(pathseq4$Sample.ID, GDC_convert_n$Sample.ID)),]
+superk <- droplevels(subset(pathseq_tum, type == "superkingdom"))
 
 SK <- merge(superk, pat_sub, by = "Patient.ID")
 for(i in levels(SK$kingdom)){
@@ -177,39 +177,89 @@ for(i in levels(SK$kingdom)){
                    height = 6, width = 6)
   }
 
+# Diversity indexes -----
+# Diversity for tumour versus normal
+pathseq5 <- merge(pathseq4, GDC_convert[, c("Sample.ID", "Sample.Type")], by = "Sample.ID")
 
-############# Diversity indexes
-samp_pat_sub <- merge(samp_pat, pat_sub, by = "Patient.ID")
-pathseq4a <- droplevels(subset(pathseq4, kingdom != "root"))
-pathseq4b <- pathseq4a[pathseq4a$Patient.ID %in% samp_pat_sub$Patient.ID, ]
+pathseq5a <- droplevels(subset(pathseq5, kingdom != "root" & Sample.Type != "Recurrent Tumor"))
+
+my_comparisons1 <- list(c("Blood Derived Normal","Primary Tumor"),
+                        c("Blood Derived Normal", "Solid Tissue Normal"),
+                        c("Primary Tumor", "Solid Tissue Normal"))
 
 library(vegan)
-
-for(i in levels(pathseq4b$kingdom)){
+for(i in levels(pathseq5a$kingdom)){
   print(i)
-  work <- droplevels(subset(pathseq4b, kingdom == i & type == "species"))
+  work <- droplevels(subset(pathseq5a, kingdom == i & type == "species"))
   thesecols <- c("Sample.ID", "name", "reads")
   div1 <- work[, colnames(work) %in% thesecols]
   div2 <- spread(div1, key = "name", value = "reads") %>% column_to_rownames(., var = "Sample.ID")
   div3 <- diversity(div2, index = "shannon") %>% as.data.frame() %>% rownames_to_column(., var = "Sample.ID")
   colnames(div3)[colnames(div3) == "."] <- "shannon"
-  div4 <- merge(div3, samp_pat_sub, by = "Sample.ID")
+  div4 <- merge(div3, GDC_convert, by = "Sample.ID")
   
-  temp_plot <- ggplot(div4, aes(x = Subtype, y = shannon)) +
+  temp_plot <- ggplot(div4, aes(x = Sample.Type, y = shannon)) +
     geom_boxplot(alpha = 0.5, width = 0.2) + 
-    geom_violin(aes(Subtype, fill = Subtype),
+    geom_violin(aes(Sample.Type, fill = Sample.Type),
                 scale = "width", alpha = 0.8) +
-    scale_fill_manual(values = cbcols) +
+    # scale_fill_manual(values = cbcols) +
+    labs(x = "Sample.Type", y = paste(i, "Shannon diversity")) +
+    theme_bw() +
+    theme(axis.text = element_text(size = 16)) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(legend.direction = "horizontal", legend.position = "top") + 
+    stat_compare_means(comparisons = my_comparisons1,
+                       label = "p.signif", method = "wilcox.test")
+  filen <- paste0(i, ".pdf")
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
+                   path = "./PathSeq/Figures/Diversity/Sample_Type",
+                   height = 6, width = 6)
+}
+
+# Diverstiy across MMR
+samp_pat_sub <- merge(samp_pat, pat_sub, by = "Patient.ID")
+pathseq4a <- merge(pathseq4, GDC_convert, by = c("Sample.ID", "Patient.ID"))
+pathseq4a1 <- droplevels(subset(pathseq4a, kingdom != "root" & Sample.Type != "Recurrent Tumor"))
+pathseq4b <- merge(pathseq4a1, samp_pat_sub, by =  c("Sample.ID", "Patient.ID"))
+pathseq6 <- pathseq4b
+pathseq6$Unique <- paste(pathseq6$Subtype, pathseq6$Sample.Type, sep = "_") %>% as.factor()
+
+library(vegan)
+for(i in levels(pathseq6$kingdom)){
+  print(i)
+  work <- droplevels(subset(pathseq6, kingdom == i & type == "species"))
+  thesecols <- c("Sample.ID", "name", "reads")
+  div1 <- work[, colnames(work) %in% thesecols]
+  div2 <- spread(div1, key = "name", value = "reads") %>% column_to_rownames(., var = "Sample.ID")
+  div3 <- diversity(div2, index = "shannon") %>% as.data.frame() %>% rownames_to_column(., var = "Sample.ID")
+  colnames(div3)[colnames(div3) == "."] <- "shannon"
+  
+  MMR <- work[, colnames(work) %in% c("Sample.ID", "Unique")]
+  div4 <- merge(div3, MMR, by = "Sample.ID")
+  
+  temp_plot <- ggplot(div4, aes(x = Unique, y = shannon)) +
+    geom_boxplot(alpha = 0.5, width = 0.2) + 
+    geom_violin(aes(Unique, fill = Unique),
+                scale = "width", alpha = 0.8) +
+   # scale_fill_manual(values = cbcols) +
     labs(x = "Subtype", y = paste(i, "Shannon diversity")) +
     theme_bw() +
     theme(axis.text = element_text(size = 16)) +
     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
     theme(legend.direction = "horizontal", legend.position = "top") + 
-    stat_compare_means(comparisons = my_comparisons,
+    stat_compare_means(comparisons = list(c("MSI-H_Blood Derived Normal", "MSI-H_Solid Tissue Normal"),
+                                          c("MSI-H_Blood Derived Normal", "MSI-H_Primary Tumor"),
+                                          c("MSI-H_Solid Tissue Normal", "MSI-H_Primary Tumor"),
+                                          c("MSS_Primary Tumor", "MSS_Blood Derived Normal"),
+                                          c("MSS_Primary Tumor", "MSS_Solid Tissue Normal"),
+                                          c("MSS_Solid Tissue Normal", "MSS_Blood Derived Normal"),
+                                          c("MSS-hiCIRC_Blood Derived Normal", "MSS-hiCIRC_Primary Tumor"),
+                                          c("MSS-hiCIRC_Blood Derived Normal", "MSS-hiCIRC_Solid Tissue Normal"),
+                                          c("MSS-hiCIRC_Primary Tumor", "MSS-hiCIRC_Solid Tissue Normal")),
                        label = "p.signif", method = "wilcox.test")
   filen <- paste0(i, ".pdf")
   ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
-                   path = "./PathSeq/Figures/Diversity",
+                   path = "./PathSeq/Figures/Diversity/MMR_Samp_Type",
                    height = 6, width = 6)
   }
 
@@ -237,14 +287,17 @@ ggplot(div4, aes(x = Subtype, y = shannon)) +
   theme(legend.direction = "horizontal", legend.position = "top") + 
   stat_compare_means(comparisons = my_comparisons,
                      label = "p.signif", method = "wilcox.test")
-
 dev.off()
 
+# Compare by Sample.Type, and MMR status
+samp_pat_sub <- merge(samp_pat, pat_sub, by = "Patient.ID")
+pathseq4a <- droplevels(subset(pathseq_tum, kingdom != "root"))
+pathseq4b <- pathseq4a[pathseq4a$Patient.ID %in% samp_pat_sub$Patient.ID, ]
 
 # PCA of data
 set.seed(1)
 
-prin <- droplevels(subset(pathseq4b, type == "species"))
+prin <- droplevels(subset(pathseq6, type == "species"))
 thesecols <- c("Sample.ID", "name", "reads")
 prin1 <- prin[, colnames(prin) %in% thesecols]
 prin1a <- prin1[prin1$Sample.ID %in% samp_pat_sub$Sample.ID, ]
@@ -265,17 +318,24 @@ dev.off()
 
 ## Remove the outlier
 rotations <- prin_comp$x %>% as.data.frame() %>% rownames_to_column(., var = "Sample.ID")
-outlier <- droplevels(subset(rotations, PC1 < -400 & PC2 < -200))$Sample.ID
-
+outlier <- droplevels(subset(rotations, PC2 < -200 | PC1 > 200))$Sample.ID
 prin3 <- prin2[!('%in%'(rownames(prin2), outlier)), ]
 prin4 <- prin3[, colSums(prin3 != 0) > 0]
 prin_comp <- prcomp(prin4, scale. = T)
 
+samp_pat_sub1 <- samp_pat_sub[!('%in%'(samp_pat_sub$Sample.ID, outlier)), ]
 
-samp_pat_sub1 <- droplevels(subset(samp_pat_sub, Sample.ID != outlier))
+
+rotations <- prin_comp$x %>% as.data.frame() %>% rownames_to_column(., var = "Sample.ID")
+rotations$Sample.ID <- as.factor(rotations$Sample.ID)
+
+samp_pat_sub2 <- samp_pat_sub1['%in%'(samp_pat_sub1$Sample.ID, rotations$Sample.ID), ]
+samp_pat_sub3 <- merge(samp_pat_sub2, GDC_convert[, c("Sample.ID", "Sample.Type")], by = "Sample.ID")
+samp_pat_sub3$Unique <- paste(samp_pat_sub3$Subtype, samp_pat_sub3$Sample.Type, sep = "_")
+
 
 ggbiplot(prin_comp, obs.scale = 1, var.scale = 1, 
-        groups = samp_pat_sub1$Subtype,
+        groups = samp_pat_sub3$Unique,
          circle = T, var.axes = F) +
   theme_bw() +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
@@ -304,7 +364,7 @@ colnames(tsne_dimensions) <- c("Dim1", "Dim2")
 ## tSNE plot - looks the same as PCA just on a different axis
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 # pdf("./Figures/Clustering/CIRC_PhenoGraph_tsNE.pdf")
-ggplot(tsne_dimensions, aes(x = Dim1, y = Dim2, colour = samp_pat_sub1$Subtype)) +
+ggplot(tsne_dimensions, aes(x = Dim1, y = Dim2, colour = samp_pat_sub3$Unique)) +
   geom_point(size = 4, alpha = 0.8, pch = 20) +
   theme_bw() +
   theme(axis.text = element_text(size = 16)) +
@@ -314,7 +374,7 @@ dev.off()
 
 # tSNE also doesn't find distinct clusters of patients based on the MSS status
 
-##### Take into account taxonomy ####
+# Take into account taxonomy ----
 # data is rownames(species), Genus, Family, Order, Superorder. Subclass
 
 data(dune)
@@ -337,44 +397,33 @@ mod <- taxondive(dune, taxdis)
 # }
 
 # Merge with the pat_sub file
-pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
-pathseq4 <- merge(pathseq3, samp_pat_sub, by = "Patient.ID")
-pathseq4 <-  pathseq4[, c("Patient.ID", "kingdom", "type", "name", "score", "score_normalized",
-                          "reads", "unambiguous", "CIRC_Genes", "Subtype")] %>% droplevels()
-
-
 library(reshape2)
- 
-droplevels(subset(pathseq4, Subtype == "MSS"))$Patient.ID %>% nlevels()
-droplevels(subset(pathseq4, Subtype == "MSS-hiCIRC"))$Patient.ID %>% nlevels()
-droplevels(subset(pathseq4, Subtype == "MSI-H"))$Patient.ID %>% nlevels()
+droplevels(subset(pathseq6, Subtype == "MSS"))$Patient.ID %>% nlevels()
+droplevels(subset(pathseq6, Subtype == "MSS-hiCIRC"))$Patient.ID %>% nlevels()
+droplevels(subset(pathseq6, Subtype == "MSI-H"))$Patient.ID %>% nlevels()
 
 empty_ <- data.frame("name" = character(),
                      "num_lev" = double(),
                      stringsAsFactors = F)
 c <- 1
-for(i in levels(pathseq4$name)){
+for(i in levels(pathseq6$name)){
   print(i)
-  working <- droplevels(subset(pathseq4, name == i))
+  working <- droplevels(subset(pathseq6, name == i))
   empty_[c, "name"] <- i
   empty_[c, "num_lev"] <- nlevels(working$Patient.ID)
   c <- c + 1
-  }
-
-
-
-head(pathseq3)
-
-bacteria <- droplevels(subset(pathseq4, kingdom == "Bacteria"))
-head(bacteria)
-
+}
 
 # Combine stats into a list, not working because some bugs are 0
+conversion <- samp_pat_sub3
+pathseq6 <- merge(pathseq4, conversion, by = "Sample.ID")
+pathseq6a <- droplevels(subset(pathseq6, Sample.Type == "Primary Tumor"))
+
 maximum_nums <- data.frame(stringsAsFactors = F)
 c <- 1
-for(i in levels(pathseq4$name)){
+for(i in levels(pathseq6a$name)){
   print(i)
-  work <- droplevels(subset(pathseq4, name == i))
+  work <- droplevels(subset(pathseq6a, name == i))
   max_num <- max(work$score)
   maximum_nums[c, "name"] <- i
   maximum_nums[c, "max"] <- max_num
@@ -382,10 +431,12 @@ for(i in levels(pathseq4$name)){
 }
 
 remove_these <- droplevels(subset(maximum_nums, max == 0))$name
-pathseq5 <- pathseq4[!('%in%'(pathseq4$name, remove_these)), ] %>% droplevels()
+pathseq5 <- pathseq6a[!('%in%'(pathseq6a$name, remove_these)), ] %>% droplevels()
 
 # save.image("./PathSeq/PathSeq.RData")
 load("./PathSeq/PathSeq.RData")
+
+
 
 library(ggpubr)
 stat_list <- list()
@@ -448,6 +499,9 @@ droplevels(subset(z, i == "Zymobacter_group"))
 View(MSS_)
 
 try <- pathseq5[pathseq5$name %in% bugs, ] %>% droplevels()
+levels(try$Sample.Type)
+
+
 
 c <- 1
 for(i in levels(try$name)){
