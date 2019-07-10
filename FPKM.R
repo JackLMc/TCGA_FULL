@@ -363,7 +363,7 @@ dcast(pat_sub, Subtype ~., length)
 
 ##### GENESETS #####
 # Bact
-FPKM2$SYMBOL[grepl("CPXCR1", FPKM2$SYMBOL)]
+FPKM2$SYMBOL[grepl("S100A", FPKM2$SYMBOL)]
 book_list <- list()
 book_list[["SAAs"]] <- c("TLR4", "LY96"#,
                          #"TIRAP"#, "MYD88"
@@ -374,7 +374,22 @@ book_list[["SAAs"]] <- c("TLR4", "LY96"#,
                          )
 
 a_list <- list()
-a_list[["test"]] <- c("")
+a_list[["test"]] <- c("AGER", "APP", "ATF1", "ATF2", "BIRC2", "BIRC3", "BPI", "BTK",
+                      "BTRC", 	"CASP8", 	"CD14", 	"CD180", 	"CD36", 	"CHUK", 	"CREB1", 	"CUL1",
+                      "DHX9", 	"DNM1", 	"DNM2", 	"DNM3", 	"DUSP3", 	"DUSP4", 	"DUSP6", 	"DUSP7",
+                      "ECSIT", 	"ELK1", 	"FADD", 	"FBXW11", 	"FOS", 	"HMGB1", 	"IKBKB", 	"IKBKE",
+                      "IKBKG", 	"IRAK1", 	"IRAK2", 	"IRAK3", 	"IRAK4", 	"IRF3", 	"IRF7", 	"ITGAM",
+                      "ITGB2", 	"JUN", 	"LBP", 	"LY86", 	"LY96", 	"MAP2K1", 	"MAP2K3", 	"MAP2K4",
+                      "MAP2K6", 	"MAP2K7", 	"MAP3K1", 	"MAP3K7", 	"MAP3K8", 	"MAPK1", 	"MAPK10", 	"MAPK11",
+                      "MAPK14", 	"MAPK3", 	"MAPK7", 	"MAPK8", 	"MAPK9", 	"MAPKAPK2", 	"MAPKAPK3", 	"MEF2A",
+                      "MEF2C", 	"MIR6502", 	"MIR718", 	"MYD88", 	"NFKB1", 	"NFKB2", 	"NFKBIA", 	"NFKBIB",
+                      "NOD1", 	"NOD2", 	"PELI1", 	"PELI2", 	"PELI3", 	"PLCG2", 	"PPP2CA", 	"PPP2CB",
+                      "PPP2R1A", 	"PPP2R1B", 	"PPP2R5D", 	"PTPN11", 	"PTPN4", 	"RELA", 	"RIPK1", 	"RIPK2",
+                      "RIPK3", 	"RPS27A", 	"RPS6KA1", 	"RPS6KA2", 	"RPS6KA3", 	"RPS6KA5", 	"S100A12", 	"S100B",
+                      "SAA1", 	"SARM1", 	"SIGIRR", 	"SKP1", 	"SOCS1", 	"TAB1", 	"TAB2", 	"TAB3",
+                      "TANK", 	"TBK1", 	"TICAM1", 	"TICAM2", 	"TIRAP", 	"TLR1", 	"TLR2", 	"TLR3",
+                      "TLR4", 	"TLR6", 	"TNIP2", 	"TRAF3", 	"TRAF6", 	"UBA52", 	"UBB", 	"UBC",
+                      "UBE2D1", 	"UBE2D2", 	"UBE2D3", 	"UBE2N", 	"UBE2V1", 	"VRK3")
 
 library(GSVA)
 Enrichment_book <- gsva(FPKM3, a_list)
@@ -632,7 +647,7 @@ for(i in 1:length(genes_of_interest)){
                    height = 6, width = 6)}
 
 FPKM2$SYMBOL[grepl("B2M", FPKM2$SYMBOL)]
-GOI <- droplevels(subset(MA, SYMBOL == "CD1C"))
+GOI <- droplevels(subset(MA, SYMBOL == "ADGRB1")) 
 
 # hiCIRC <- droplevels(subset(GOI, Subtype == "MSS-hiCIRC"))
 # mss <- droplevels(subset(GOI, Subtype == "MSS"))
