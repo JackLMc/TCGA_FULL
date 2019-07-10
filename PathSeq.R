@@ -2,6 +2,8 @@
 # Preprocessing ----
 # Looking for the files
 ## Mount the drive
+library(tidyverse)
+library(UsefulFunctions)
 thousand.folders <- list.dirs(path = "/Volumes/2018/beggsa-tcgacolorectal/download_rest/bacterial_project/results", full.names = T)
 filelist1 <- sapply(thousand.folders, function(x){
   list.files(x, pattern = ".pathseq.txt$", full.names = T)})
@@ -18,18 +20,24 @@ names(lists) <- gsub("pathseq.txt", "bam", names(lists))
 
 # Colnames = c(tax_id, taxonomy, type, name,
 # kingdom, score, score_normalized, reads, unambiguous, reference_length)
-GDC_convert <- read.delim("./Data/PathSeq/gdc_sample_sheet.2019-04-10.tsv")
-GDC_convert$Patient.ID <- gsub("-", ".", GDC_convert$Case.ID)
-GDC_convert$Sample.ID <- gsub("_hg19.*$|_Illumina.*$|_gdc.*$", "", GDC_convert$File.Name)
+GDC_convert <- read.delim("./Data/GDC_large_mapping_TCGA.txt")[, c("file_name", "cases.0.submitter_id", "cases.0.samples.0.sample_type",
+                                                                   "data_category",
+                                                                   "cases.0.samples.0.submitter_id",
+                                                                   "cases.0.samples.0.portions.0.analytes.0.aliquots.0.submitter_id")]
+
+colnames(GDC_convert) <- c("File.Name", "Patient.ID", "Sample.Type", "Data.Type", "TCGA_Submitter_ID", "TCGA.ID")
+GDC_convert$Patient.ID <- gsub("-", ".", GDC_convert$Patient.ID)
+GDC_convert <- GDC_convert[GDC_convert$File.Name %in% names(lists), ]
+
+# GDC_convert$Sample.ID <- gsub("_hg19.*$|_Illumina.*$|_gdc.*$", "", GDC_convert$File.Name)
 
 
 # colnames(GDC_convert)[colnames(GDC_convert) == "cases.0.samples.0.portions.0.analytes.0.aliquots.0.submitter_id"] <- "file.ID"
-GDC_convert_t <- droplevels(subset(GDC_convert, Sample.Type != "Blood Derived Normal" &
-                                Sample.Type != "Solid Tissue Normal"))
+GDC_convert_t <- droplevels(subset(GDC_convert, Sample.Type == "Metastatic" |
+                                Sample.Type == "Primary Tumor" | Sample.Type == "Recurrent Tumor"))
+
 GDC_convert_n <- droplevels(subset(GDC_convert, Sample.Type == "Blood Derived Normal" |
                                      Sample.Type == "Solid Tissue Normal"))
-
-
 
 GDC_convert_t$Patient.ID <- as.factor(GDC_convert_t$Patient.ID)
 GDC_convert_t$File.Name<- as.factor(GDC_convert_t$File.Name)
@@ -53,6 +61,8 @@ pathseq <- multi_join(lists2, full_join, by = c("tax_id", "taxonomy", "type", "n
                                                     "reads", "unambiguous", "reference_length", "File.Name"))
 pathseq1 <- merge(pathseq, GDC_convert, by = "File.Name") %>% droplevels()
 pathseq1$Patient.ID <- as.factor(pathseq1$Patient.ID)
+pathseq1$File.Name <- as.factor(pathseq1$File.Name)
+nlevels(pathseq1$File.Name)
 # pathseq1a <- droplevels(subset(pathseq1, Sample.Type == "Primary Tumor"))
 
 # Num_Files <- data.frame()
@@ -74,12 +84,65 @@ pathseq1$Patient.ID <- as.factor(pathseq1$Patient.ID)
 
 
 
-# Use Sample IDs
-pathseq2 <- factorthese(pathseq1, c("Patient.ID", "kingdom", "name", "taxonomy", "type", "File.Name"))
-pathseq2$Sample.ID <- gsub("_hg19.*$|_Illumina.*$|_gdc.*$", "", pathseq2$File.Name)
-pathseq2a <- subset(pathseq2, !grepl("_gapfillers", pathseq2$Sample.ID), drop = T) %>% droplevels() 
+# Use Submitter IDs 
+pathseq2 <- factorthese(pathseq1, c("Patient.ID", "kingdom", "name", "taxonomy", "type", "File.Name")) %>% droplevels()
+pathaa <- pathseq2[grep("gapfillers", pathseq2$File.Name), ] %>% droplevels()
 
-pathseq2$File.Name <- as.factor(pathseq2$File.Name)
+df <- data.frame()
+c <- 1
+for(i in levels(pathaa$TCGA_Submitter_ID)){
+  print(i)
+  work <- droplevels(subset(pathseq2, TCGA_Submitter_ID == i))
+  levs <- nlevels(work$File.Name)
+  df[c, "TCGA_Submitter_ID"] <- i
+  df[c, "Number"] <- levs
+  c <- c + 1
+  }
+
+pats_with_gapfillers <- droplevels(subset(df, Number > 1))$TCGA_Submitter_ID
+GDC_convert[GDC_convert$TCGA_Submitter_ID %in% pats_with_gapfillers, ] %>% droplevels()
+
+missing_pats <- droplevels(subset(df, Number == 1))$TCGA_Submitter_ID
+
+head(missing_patient_files)
+
+## NEED TO FIGURE OUT HOW TO DEAL WITH THE GAPFILLERS, SHOULD MERGE IN, BUT ALSO... WE DON'T HAVE ALL THE DATA
+
+# missing_patient_files <- GDC_convert[GDC_convert$TCGA_Submitter_ID %in% missing_pats, ] %>% droplevels()
+# write.csv(missing_patient_files, file = "./Output/Patients_missing_pathseq.csv", row.names = F)
+
+
+
+pathseq2$Gap_filler <- gsub("_hg19.*$|_Illumina.*$|_gdc.*$", "", pathseq2$File.Name) %>% as.factor()
+# pathseq2a <- subset(pathseq2, !grepl("_gapfillers", pathseq2$Sample.ID), drop = T) %>% droplevels() 
+pathseq2$Sample.ID <- gsub("_hg19.*$|_Illumina.*$|_gdc.*$|_gapfillers.*$", "", pathseq2$File.Name) %>% as.factor()
+
+pathseq2$Sample.ID <- as.factor(pathseq2$Sample.ID)
+pathseq2$Gap_filler <- as.factor(pathseq2$Gap_filler)
+
+
+
+df <- data.frame()
+c <- 1
+for(i in levels(pathseq2$Sample.ID)){
+  print(i)
+  work <- droplevels(subset(pathseq2, Sample.ID == i))
+  levs <- nlevels(work$Gap_filler)
+  df[c, "Sample.ID"] <- i
+  df[c, "Number"] <- levs
+  c <- c + 1
+}
+
+head(df)
+
+df1 <- droplevels(subset(df, Number == 1))
+
+pathseq2[grep("gapfillers", pathseq2$Gap_filler), ]
+
+droplevels(subset(pathseq2, Sample.ID == "TCGA-A6-2674-01A-02D-1953-10"))
+
+levels(pathseq2$Sample.ID)
+
 pathseq2a$File.Name <- as.factor(pathseq2a$File.Name)
 
 # nlevels(pathseq2$File.Name) 
@@ -90,6 +153,11 @@ pathseq2b <- droplevels(pathseq2a[pathseq2a$Patient.ID %in% pat_sub$Patient.ID, 
 pathseq3 <- pathseq2b[, c("Patient.ID", "name", "score",
                          "score_normalized", "reads", "kingdom", "type", "unambiguous", "Sample.ID")]
 pathseq3$Sample.ID <- as.factor(pathseq3$Sample.ID)
+
+head(pathseq3)
+
+
+pathseq2[grep("gapfill", pathseq2$File.Name),]
 
 # Fill in the missing data for microbes not found in those samples
 microbe_taxa <- pathseq1[, c("kingdom", "type", "name")]
@@ -435,8 +503,8 @@ pathseq5 <- pathseq6a[!('%in%'(pathseq6a$name, remove_these)), ] %>% droplevels(
 
 # save.image("./PathSeq/PathSeq.RData")
 load("./PathSeq/PathSeq.RData")
-
-
+head(pathseq)
+# check bacteroides/firmicutes ratio, prediction increased bacteroides in hiCIRC patients.
 
 library(ggpubr)
 stat_list <- list()
