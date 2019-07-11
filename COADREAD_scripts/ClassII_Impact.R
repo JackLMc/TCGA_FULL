@@ -11,7 +11,7 @@ my_comparisons <- list(c("MSS-hiCIRC", "MSI-H"),
                        c("MSI-H", "MSS"))
 
 # Read in data and process ----
-load("FPKMs.RData")
+load("./R_Data/FPKMs.RData")
 
 ## CIRC Geneset
 CIRC_IG <- read.csv("./Exploratory_Data/Genesets/CIRC.csv")

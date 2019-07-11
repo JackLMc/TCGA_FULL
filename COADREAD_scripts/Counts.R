@@ -84,7 +84,7 @@ Counts_cleaned <- droplevels(Counts[!'%in%'(Counts$Gene,
                                               "__not_aligned", "__too_low_aQual", "__ambiguous")), ])
 ## Should these be used to talk about library sizes?
 
-save.image(file = "Counts.RData")
+save.image(file = "./R_Data/Counts.RData")
 
 
 ##### START EDGER
@@ -314,8 +314,8 @@ MSI_H.vs.MSS[grepl("HLA-DR", MSI_H.vs.MSS$SYMBOL), ]
 MSI_H.vs.MSS_hiCIRC[grepl("HLA-DR", MSI_H.vs.MSS_hiCIRC$SYMBOL), ]
 MSS_hiCIRC.vs.MSS[grepl("HLA-DR", MSS_hiCIRC.vs.MSS$SYMBOL), ]
 
-# save.image(file = "Counts.RData")
-load("Counts.RData")
+# save.image(file = "./R_Data/Counts.RData")
+load("./R_Data/Counts.RData")
 
 see_pats <- merge(temp, pat_sub, by = "Patient.ID")
 head(see_pats)
@@ -513,4 +513,4 @@ View(camera_results)
 droplevels(subset(camera_results, FDR <= 0.01))
 
 rm(listDF)
-save.image(file = "Counts.RData")
+save.image(file = "./R_Data/Counts.RData")

@@ -324,8 +324,8 @@ pdf("./Figures/Mutation/Recurrent/MSI_muts.pdf")
 geneCloud(muta3, minMut = no_pats3, random.order = F)
 dev.off()
 
-save.image("Mutations.RData")
-load("./Mutations.RData")
+save.image("./R_Data/Mutations.RData")
+load("./R_Data/Mutations.RData")
 ## Pick from geneCloud plot - clustered mutations?
 lollipopPlot(muta1, gene = "APC")
 lollipopPlot(muta2, gene = "APC")

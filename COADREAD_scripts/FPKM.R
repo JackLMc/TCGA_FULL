@@ -11,7 +11,7 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
             "MSI-L" = "#E69F00")
 
 # source("Clinical.R") # Run to gain the clinical dataframe that's in Output (Clin_614)
-load("FPKMs.RData")
+load("./R_Data/FPKMs.RData")
 
 # Looking for the files
 thousand.folders <- list.dirs(path = "./Data/FPKM", full.names = T)
@@ -118,7 +118,7 @@ Enrichment_CIRC1 <- Enrichment_CIRC %>% as.data.frame() %>%
 
 Enrichment_CIRC1$Patient.ID <- as.factor(Enrichment_CIRC1$Patient.ID)
 # write.table("./Output/Patient_list.txt", x = Enrichment_CIRC1$Patient.ID, row.names = F)
-# save.image(file = "FPKMs.RData")
+# save.image(file = "./R_Data/FPKMs.RData")
 
 
 # START CIRC Enrichment --------
@@ -349,7 +349,7 @@ ggplot(df1a, aes(x = Subtype, y = CIRC_Genes)) +
 # write.csv("./Output/Patient_Subtypes.csv", x = df1a[, c("Patient.ID", "CIRC_Genes", "Subtype")], row.names = F)
 
 # START ----
-load("FPKMs.RData")
+load("./R_Data/FPKMs.RData")
 pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
 library(reshape2)
 dcast(pat_sub, Subtype ~., length)

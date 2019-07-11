@@ -202,7 +202,7 @@ samp_pat <- samp_patient[!duplicated(samp_patient), ]
 missing_data2 <- merge(missing_data1, samp_pat, by = "Sample.ID")
 pathseq4 <- rbind(pathseq3, missing_data2)
 
-# save.image("./PathSeq/PathSeq.RData")
+# save.image("./R_Data/PathSeq.RData")
 
 # LOAD IT UP ----
 library(UsefulFunctions)
@@ -217,7 +217,7 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
             "MSS" = "#009E73",
             "MSI-L" = "#E69F00")
 
-load("./PathSeq/PathSeq.RData")
+load("./R_Data/PathSeq.RData")
 
 # Overall abundances ----
 pathseq_tum <- pathseq4[!('%in%'(pathseq4$Sample.ID, GDC_convert_n$Sample.ID)),]
@@ -501,8 +501,8 @@ for(i in levels(pathseq6a$name)){
 remove_these <- droplevels(subset(maximum_nums, max == 0))$name
 pathseq5 <- pathseq6a[!('%in%'(pathseq6a$name, remove_these)), ] %>% droplevels()
 
-# save.image("./PathSeq/PathSeq.RData")
-load("./PathSeq/PathSeq.RData")
+# save.image("./R_Data/PathSeq.RData")
+load("./R_Data/PathSeq.RData")
 head(pathseq)
 # check bacteroides/firmicutes ratio, prediction increased bacteroides in hiCIRC patients.
 
@@ -642,8 +642,8 @@ for(i in levels(pathseq4$name)){
 remove_these <- droplevels(subset(maximum_nums, max == 0))$name
 pathseq5 <- pathseq4[!('%in%'(pathseq4$name, remove_these)), ] %>% droplevels()
 
-# save.image("./PathSeq/PathSeq.RData")
-load("./PathSeq/PathSeq.RData")
+# save.image("./R_Data/PathSeq.RData")
+load("./R_Data/PathSeq.RData")
 
 library(ggpubr)
 stat_list <- list()
@@ -802,8 +802,8 @@ for(i in levels(pathseq4$name)){
 remove_these <- droplevels(subset(maximum_nums, max == 0))$name
 pathseq5 <- pathseq4[!('%in%'(pathseq4$name, remove_these)), ] %>% droplevels()
 
-# save.image("./PathSeq/PathSeq.RData")
-load("./PathSeq/PathSeq.RData")
+# save.image("./R_Data/PathSeq.RData")
+load("./R_Data/PathSeq.RData")
 
 library(ggpubr)
 stat_list <- list()
