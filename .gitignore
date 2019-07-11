@@ -21,9 +21,12 @@ Documents/
 Copies/
 Vectra_representative/
 Paper_Ready_Figs/
-STAD/
-UCEC/
-PAAD/
+STAD/Data/
+STAD/Figures/
+UCEC/Data/
+UCEC/Figures/
+PAAD/Data/
+PAAD/Figures/
 
 ## Genome Stuff
 hgenome.00.b.array
