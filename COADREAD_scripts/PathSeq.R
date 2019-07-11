@@ -4,19 +4,19 @@
 ## Mount the drive
 library(tidyverse)
 library(UsefulFunctions)
-thousand.folders <- list.dirs(path = "/Volumes/2018/beggsa-tcgacolorectal/download_rest/bacterial_project/results", full.names = T)
-filelist1 <- sapply(thousand.folders, function(x){
-  list.files(x, pattern = ".pathseq.txt$", full.names = T)})
-filelist = unlist(filelist1)
+# thousand.folders <- list.dirs(path = "/Volumes/2018/beggsa-tcgacolorectal/download_rest/bacterial_project/results", full.names = T)
+# filelist1 <- sapply(thousand.folders, function(x){
+#   list.files(x, pattern = ".pathseq.txt$", full.names = T)})
+# filelist = unlist(filelist1)
+pathseq <- read.delim("./Data/PathSeq/Raw_Data_20190711/pathseq.txt", stringsAsFactors = F)
 
-
-# Read in files and combine
-lists <- lapply(filelist, read.delim, header = T, stringsAsFactors = F)
-listsDF <- lists
-lists <- listsDF
-names(lists) <- filelist
-names(lists) <- gsub("/Volumes/2018/beggsa-tcgacolorectal/download_rest/bacterial_project/results/", "", names(lists))
-names(lists) <- gsub("pathseq.txt", "bam", names(lists))
+# # Read in files and combine
+# lists <- lapply(filelist, read.delim, header = T, stringsAsFactors = F)
+# listsDF <- lists
+# lists <- listsDF
+# names(lists) <- filelist
+# names(lists) <- gsub("/Volumes/2018/beggsa-tcgacolorectal/download_rest/bacterial_project/results/", "", names(lists))
+# names(lists) <- gsub("pathseq.txt", "bam", names(lists))
 
 # Colnames = c(tax_id, taxonomy, type, name,
 # kingdom, score, score_normalized, reads, unambiguous, reference_length)
@@ -43,22 +43,22 @@ GDC_convert_t$Patient.ID <- as.factor(GDC_convert_t$Patient.ID)
 GDC_convert_t$File.Name<- as.factor(GDC_convert_t$File.Name)
 GDC_convert_t <- droplevels(GDC_convert_t)
 
-lists1 <- lists[names(lists) %in% GDC_convert$File.Name]
-lists1a <- lists1[sapply(lists1, function(x) dim(x)[1]) > 0]
-lists2 <- lapply(names(lists1a), 
-                  function(n, x){
-                    x[[n]]$File.Name <- n
-                    return (x[[n]])},
-                 lists1)
-
-multi_join <- function(list_of_loaded_data, join_func, ...){
-  require("dplyr")
-  output <- Reduce(function(x, y) {join_func(x, y, ...)}, list_of_loaded_data)
-  return(output)}
-
-pathseq <- multi_join(lists2, full_join, by = c("tax_id", "taxonomy", "type", "name",
-                                                    "kingdom", "score", "score_normalized",
-                                                    "reads", "unambiguous", "reference_length", "File.Name"))
+# lists1 <- lists[names(lists) %in% GDC_convert$File.Name]
+# lists1a <- lists1[sapply(lists1, function(x) dim(x)[1]) > 0]
+# lists2 <- lapply(names(lists1a), 
+#                   function(n, x){
+#                     x[[n]]$File.Name <- n
+#                     return (x[[n]])},
+#                  lists1)
+# 
+# multi_join <- function(list_of_loaded_data, join_func, ...){
+#   require("dplyr")
+#   output <- Reduce(function(x, y) {join_func(x, y, ...)}, list_of_loaded_data)
+#   return(output)}
+# 
+# pathseq <- multi_join(lists2, full_join, by = c("tax_id", "taxonomy", "type", "name",
+#                                                     "kingdom", "score", "score_normalized",
+#                                                     "reads", "unambiguous", "reference_length", "File.Name"))
 pathseq1 <- merge(pathseq, GDC_convert, by = "File.Name") %>% droplevels()
 pathseq1$Patient.ID <- as.factor(pathseq1$Patient.ID)
 pathseq1$File.Name <- as.factor(pathseq1$File.Name)
