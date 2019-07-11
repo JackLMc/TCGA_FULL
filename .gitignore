@@ -42,7 +42,6 @@ hgenome.reads
 *.pptx
 *.pdf
 *.Rmd
-*.md
 *.xlsx
 *.rda
 *.html
