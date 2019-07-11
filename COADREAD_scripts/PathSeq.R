@@ -241,7 +241,7 @@ for(i in levels(SK$kingdom)){
                        label = "p.signif", method = "wilcox.test")
   filen <- paste0(i, ".pdf")
   ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
-                   path = "./PathSeq/Figures/Superkingdom",
+                   path = "./Figures/PathSeq/Superkingdom",
                    height = 6, width = 6)
   }
 
@@ -280,7 +280,7 @@ for(i in levels(pathseq5a$kingdom)){
                        label = "p.signif", method = "wilcox.test")
   filen <- paste0(i, ".pdf")
   ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
-                   path = "./PathSeq/Figures/Diversity/Sample_Type",
+                   path = "./Figures/PathSeq/Diversity/Sample_Type",
                    height = 6, width = 6)
 }
 
@@ -327,7 +327,7 @@ for(i in levels(pathseq6$kingdom)){
                        label = "p.signif", method = "wilcox.test")
   filen <- paste0(i, ".pdf")
   ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
-                   path = "./PathSeq/Figures/Diversity/MMR_Samp_Type",
+                   path = "./Figures/PathSeq/Diversity/MMR_Samp_Type",
                    height = 6, width = 6)
   }
 
@@ -342,7 +342,7 @@ div2 <- spread(div1, key = "name", value = "reads") %>%
 colnames(div2)[colnames(div2) == "."] <- "shannon"
 div4 <- merge(div3, samp_pat_sub, by = "Sample.ID")
 
-pdf("./PathSeq/Figures/Diversity/Root.pdf", height = 6, width = 6)
+pdf("./Figures/PathSeq/Diversity/Root.pdf", height = 6, width = 6)
 ggplot(div4, aes(x = Subtype, y = shannon)) +
   geom_boxplot(alpha = 0.5, width = 0.2) + 
   geom_violin(aes(Subtype, fill = Subtype),
@@ -375,7 +375,7 @@ prin2 <- spread(prin1, key = "name", value = "reads") %>% column_to_rownames(., 
 prin_comp <- prcomp(prin2, scale. = T)
 
 library(ggbiplot)
-pdf("./PathSeq/Figures/.pdf", height = 6, width = 6)
+pdf("./Figures/PathSeq/.pdf", height = 6, width = 6)
 ggbiplot(prin_comp, obs.scale = 1, var.scale = 1, 
          #groups = Pcluster,
          circle = T, var.axes = F) +
@@ -587,7 +587,7 @@ for(i in levels(try$name)){
     theme(legend.direction = "horizontal", legend.position = "top") + 
     stat_compare_means(comparisons = my_comparisons,
                        label = "p.signif", method = "wilcox.test")
-  filen <- paste0("./PathSeq/Figures/", i, ".pdf")
+  filen <- paste0("./Figures/PathSeq/", i, ".pdf")
   ggsave(filen, temp_plot)
   c <- c + 1
 }
@@ -865,7 +865,7 @@ for(i in levels(try$name)){
     theme(legend.direction = "horizontal", legend.position = "top") + 
     stat_compare_means(comparisons = my_comparisons,
                        label = "p.signif", method = "wilcox.test")
-  filen <- paste0("./PathSeq/Figures/Norm/", i, ".pdf")
+  filen <- paste0("./Figures/PathSeq/Norm/", i, ".pdf")
   ggsave(filen, temp_plot)
   c <- c + 1
   }
@@ -1054,7 +1054,7 @@ for(i in levels(try$name)){
     theme(legend.direction = "horizontal", legend.position = "top") + 
     stat_compare_means(comparisons = my_comparisons,
                        label = "p.signif", method = "wilcox.test")
-  filen <- paste0("./PathSeq/Figures/Norm/Blood/", i, ".pdf")
+  filen <- paste0("./Figures/PathSeq/Norm/Blood/", i, ".pdf")
   ggsave(filen, temp_plot)
   c <- c + 1
 }
