@@ -27,7 +27,7 @@ GDC_convert <- read.delim("./Data/GDC_large_mapping_TCGA.txt")[, c("file_name", 
 
 colnames(GDC_convert) <- c("File.Name", "Patient.ID", "Sample.Type", "Data.Type", "TCGA_Submitter_ID", "TCGA.ID")
 GDC_convert$Patient.ID <- gsub("-", ".", GDC_convert$Patient.ID)
-GDC_convert <- GDC_convert[GDC_convert$File.Name %in% names(lists), ]
+GDC_convert <- GDC_convert[GDC_convert$File.Name %in% pathseq$File.Name, ]
 
 # GDC_convert$Sample.ID <- gsub("_hg19.*$|_Illumina.*$|_gdc.*$", "", GDC_convert$File.Name)
 
