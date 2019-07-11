@@ -11,11 +11,12 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
 
 
 library(maftools)
+
+# Read in the public mutation data and merge with the clinical data ----
 muta <- read.maf("./Data/Mutations/mc3.v0.2.8.PUBLIC.maf")
 
 mutation <- muta@data # THIS IS SOMATIC SNPs
 mutation$IMPACT <- as.factor(mutation$IMPACT)
-levels(mutation$IMPACT)
 mutation$Patient.ID <- samptopat(mutation$Tumor_Sample_Barcode)
 mutation$Patient.ID <- gsub("-", ".", mutation$Patient.ID)
 # mutation$Patient.ID[duplicated(mutation$Patient.ID)]
@@ -23,29 +24,33 @@ mutation$Patient.ID <- gsub("-", ".", mutation$Patient.ID)
 # Clinical
 pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
 tcga_mut <- mutation[mutation$Patient.ID %in% pat_sub$Patient.ID, ]
+tcga_mut <- factorthese(tcga_mut, c("Feature_type", "Feature", "BIOTYPE",
+                                    "VARIANT_CLASS", "Variant_Classification",
+                                    "Consequence", "Variant_Type", "Variant"))
 
-#### Number of mutations between groups ####
+# Number of mutations between groups ----
 # Count up
 ## Including silent
 Mutation_numbers <- tcga_mut %>%
   dplyr:: group_by(Patient.ID, Variant_Type) %>%
   dplyr:: summarise(length(Variant_Type)) %>%
-  spread(key = "Variant_Type", value = "length(Variant_Type)")%>%
-  mutate_all(funs(replace(., is.na(.), 0))) %>% as.data.frame()
+  spread(key = "Variant_Type", value = "length(Variant_Type)") %>% 
+  as.data.frame()
+Mutation_numbers[is.na(Mutation_numbers)] <- 0
+
 Mutation_numbers$TOTAL <- rowSums(Mutation_numbers[!'%in%'(names(Mutation_numbers), "Patient.ID")])
 
 mut_clin <- Mutation_numbers %>% 
   merge(., pat_sub[, c("Patient.ID", "Subtype")], by = "Patient.ID") %>%
-  gather(., -"Patient.ID", -"Subtype", key = "Variant", value = "Number")
-mut_clin$Variant <- as.factor(mut_clin$Variant)
+  gather(., -"Patient.ID", -"Subtype", key = "Variant", value = "Number") %>% droplevels()
 
 # Plot
 ## All
 for(i in levels(mut_clin$Variant)){
   print(i)
-  Chosen <- droplevels(subset(mut_clin, Variant == i))
-  Chosen$Rank <- rank(Chosen$Number)
-  temp_plot <- ggplot(Chosen, aes(x = Subtype, y = Rank)) +
+  work <- droplevels(subset(mut_clin, Variant == i))
+  work$Rank <- rank(work$Number)
+  temp_plot <- ggplot(work, aes(x = Subtype, y = Rank)) +
     geom_boxplot(alpha = 0.5, width = 0.2) + 
     geom_violin(aes(Subtype, fill = Subtype), scale = "width", alpha = 0.8) +
     scale_fill_manual(values = cbcols) +
@@ -61,26 +66,9 @@ for(i in levels(mut_clin$Variant)){
 
 
 # Remove silent
-tcga_mut$Consequence <- as.factor(tcga_mut$Consequence)
-levels(tcga_mut$Consequence)
-droplevels(subset(tcga_mut, Consequence == "splice_donor_variant" & Hugo_Symbol == "MUC16"))
-head(tcga_mut)
-
-those_with_num <- droplevels(subset(tcga_mut, dbSNP_RS != "."))
-head(those_with_num)
+tcga_mut[, grep("Silent", ignore.case = T, tcga_mut)] %>% head()
 
 
-this <- merge(those_with_num, pat_sub[, c("Patient.ID", "Subtype")], by = "Patient.ID")
-
-
-
-tcga_mut$Feature_type <- as.factor(tcga_mut$Feature_type)
-tcga_mut$Feature <- as.factor(tcga_mut$Feature)
-tcga_mut$BIOTYPE <- as.factor(tcga_mut$BIOTYPE)
-tcga_mut$VARIANT_CLASS <- as.factor(tcga_mut$VARIANT_CLASS)
-tcga_mut$Variant_Classification <- as.factor(tcga_mut$Variant_Classification)
-levels(tcga_mut$Variant_Classification)
-str(tcga_mut)
 
 
 Mutation_numbers <- tcga_mut %>%
@@ -100,9 +88,9 @@ mut_clin <- Mutation_numbers %>%
 mut_clin$Consequence <- as.factor(mut_clin$Consequence)
 for(i in levels(mut_clin$Consequence)){
   print(i)
-  Chosen <- droplevels(subset(mut_clin, Consequence == i))
-  Chosen$Rank <- rank(Chosen$Number)
-  temp_plot <- ggplot(Chosen, aes(x = Subtype, y = Rank)) +
+  work <- droplevels(subset(mut_clin, Consequence == i))
+  work$Rank <- rank(work$Number)
+  temp_plot <- ggplot(work, aes(x = Subtype, y = Rank)) +
     geom_boxplot(alpha = 0.5, width = 0.2) + 
     geom_violin(aes(Subtype, fill = Subtype), scale = "width", alpha = 0.8) +
     scale_fill_manual(values = cbcols) +
@@ -122,7 +110,7 @@ for(i in levels(mut_clin$Consequence)){
 
 
 
-#### Somatic Signatures ####
+# Somatic Signatures ----
 large <- c("SomaticSignatures",
            "BSgenome.Hsapiens.1000genomes.hs37d5")
 for (lib in large)
@@ -291,10 +279,12 @@ dev.off()
 #   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
 #   stat_compare_means(comparisons = my_comparisons, label = "p.signif")
 
-##### Recurrent Mutations #####
+
+
+
+
+# Recurrent Mutations ----
 devtools::install_github(repo = "PoisonAlien/TCGAmutations")
-
-
 
 library(maftools)
 library(tidyverse)
@@ -379,6 +369,55 @@ somaticInteractions(maf = muta3, top = 10, pvalue = c(0.05, 0.1))
 dev.off()
 
 
+
+## Where do the recurrent mutations hit in the patient groups?
+clinical_mutation <- merge(tcga_mut, pat_sub[, c("Patient.ID", "Subtype")], by = "Patient.ID")
+TP53 <- droplevels(subset(clinical_mutation, Hugo_Symbol == "TP53"))
+droplevels(subset(pat_sub, Subtype == "MSS-hiCIRC"))$Patient.ID
+
+# 58/96 (have mutations in TP53)
+
+
+TP53 %>% 
+  group_by(Subtype) %>%
+  summarise(no_pats = length(unique(Patient.ID)))
+clinical_mutation  %>% 
+  group_by(Subtype) %>%
+  summarise(no_pats = length(unique(Patient.ID)))
+
+hiCIRCs <- droplevels(subset(clinical_mutation, Hugo_Symbol == "TP53" & Subtype == "MSS-hiCIRC"))
+hiCIRCs %>% 
+  group_by(Exon_Number) %>%
+  summarise(no_pats = length(unique(Patient.ID)))
+
+MSS <- droplevels(subset(clinical_mutation, Hugo_Symbol == "TP53" & Subtype == "MSS"))
+MSS %>% 
+  group_by(Exon_Number) %>%
+  summarise(no_pats = length(unique(Patient.ID)))
+
+
+APC <- droplevels(subset(clinical_mutation, Hugo_Symbol == "APC"))
+
+APC %>% 
+  group_by(Subtype) %>%
+  summarise(no_pats = length(unique(Patient.ID)))
+clinical_mutation  %>% 
+  group_by(Subtype) %>%
+  summarise(no_pats = length(unique(Patient.ID)))
+
+hiCIRCs <- droplevels(subset(clinical_mutation, Hugo_Symbol == "APC" & Subtype == "MSS-hiCIRC"))
+hiCIRCs %>% 
+  group_by(IMPACT) %>%
+  summarise(no_pats = length(unique(Patient.ID)))
+
+MSS <- droplevels(subset(clinical_mutation, Hugo_Symbol == "APC" & Subtype == "MSS"))
+MSS %>% 
+  group_by(IMPACT) %>%
+  summarise(no_pats = length(unique(Patient.ID)))
+
+
+
+
 # Find number of MSS/MSS-hiCIRC patients which are KRAS mutants
 mutation$Patient.ID <- as.factor(mutation$Patient.ID)
 mutation_CRC <- merge(mutation, pat_sub[, c("Patient.ID", "Subtype")]) %>% as.data.frame()
@@ -402,3 +441,6 @@ library(seq2pathway)
 
 
 browseVignettes("seq2pathway")
+
+
+
