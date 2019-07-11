@@ -26,14 +26,12 @@ lists <- listsDF
 
 for (i in names(lists)){
   p <- gsub("./Data/FPKM/", "", i)
-  colnames(lists[[i]]) <- c("Gene", p)
-}
+  colnames(lists[[i]]) <- c("Gene", p)}
 
 names(lists) <- gsub("./Data/FPKM/", "", names(lists))
 
 
-# Patients I have CIRC scores and microsatellite status for.
-# pat_sub <- read.csv("./Data/Important/patient_subtypes.csv")
+# GDC sample sheet
 converter <- read.delim("./Data/Important/gdc_sample_sheet_FPKM.tsv")
 converter$Patient.ID <- gsub("-", ".", converter$Case.ID)
 # converter1 <- converter[converter$Patient.ID %in% pat_sub$Patient.ID, ]
@@ -43,6 +41,7 @@ converter$File.Name <- gsub(".FPKM.txt.gz", "", converter$File.Name)
 # clin1 <- clin[clin$Patient.ID %in% pat_sub$Patient.ID, ]
 
 lists1 <- lists[names(lists) %in% converter$File.ID]
+converter <- converter[converter$File.ID %in% names(lists), ]
 
 multi_join <- function(list_of_loaded_data, join_func, ...){
   require("dplyr")
@@ -50,13 +49,10 @@ multi_join <- function(list_of_loaded_data, join_func, ...){
   return(output)
 }
 
-combined_df <- multi_join(lists1, full_join)
+combined_df <- multi_join(lists1, full_join, by = "Gene")
 
 temp_df <- combined_df %>% gather(key = "File.ID", value = "FPKM", -Gene)
-converter2 <- droplevels(subset(converter, Sample.Type != "Solid Tissue Normal" &
-                                  Sample.Type != "Blood Derived Normal"))
-
-
+converter2 <- droplevels(subset(converter,  Sample.Type == "Primary Tumor"))
 
 # this <- data.frame(stringsAsFactors = F)
 # converter2$Patient.ID <- as.factor(converter2$Patient.ID)
@@ -72,11 +68,13 @@ converter2 <- droplevels(subset(converter, Sample.Type != "Solid Tissue Normal" 
 
 
 temp_df1 <- merge(converter2[, c("Patient.ID", "File.ID")], temp_df, by = "File.ID")
+
 library(reshape2)
+head(temp_df1)
 FPKMs <- dcast(temp_df1, Gene ~ Patient.ID, sum, value.var = "FPKM")
 
 ## Should these be used to talk about library sizes?
-# Patient_list <- colnames(FPKMs_cleaned)[!'%in%'(colnames(FPKMs_cleaned), "Gene")]
+# Patient_list <- colnames(FPKMs)[!'%in%'(colnames(FPKMs), "Gene")]
 # write.table(Patient_list, "./Output/Patient_list.txt", row.names = F)
 
 # Gaining second dataframe (Symbols)
@@ -94,19 +92,16 @@ FPKM <- merge(genes[, c("ENSEMBL", "SYMBOL")], FPKMs, by = "ENSEMBL") %>%
   gather(contains("TCGA"), key = "Patient.ID", value = "FPKM")
 library(reshape2)
 FPKM1 <- dcast(FPKM, SYMBOL ~ Patient.ID, sum, value.var = "FPKM")
-
-#### Read in data and process ####
 FPKM2 <- FPKM1[!is.na(FPKM1$SYMBOL), ]
 rownames(FPKM2) <- NULL
 FPKM3 <- FPKM2 %>%
   column_to_rownames(., var = "SYMBOL") %>%
   as.matrix()
 
-# CIRC Geneset
+# CIRC Score calculation ----
 CIRC_IG <- read.csv("./Exploratory_Data/Genesets/CIRC.csv")
 CIRC_IG$SYMBOL <- as.factor(CIRC_IG$SYMBOL)
 
-#### CIRC ####
 # Label
 CIRC_genes <- droplevels(subset(CIRC_IG, CIRC == T)) %>% 
   takegenelevels(.) %>% list()
@@ -126,8 +121,8 @@ Enrichment_CIRC1$Patient.ID <- as.factor(Enrichment_CIRC1$Patient.ID)
 # save.image(file = "FPKMs.RData")
 
 
-########## START ##########
-##### Get the Clinical Stuff in ####
+# START CIRC Enrichment --------
+# Read Clinical Stuff in ----
 Clin_614 <- read.csv("./Output/Clinical_Data_614.csv")
 CIRC_clin <- merge(Enrichment_CIRC1, Clin_614, by = "Patient.ID")
 
@@ -146,7 +141,7 @@ ggplot(CIRC_clin, aes(x = MSI_STATUS, y = CIRC_Genes)) +
                      label = "p.signif", method = "wilcox.test")
 # dev.off()
 
-##### Analysing variance differences ####
+# Analysing variance differences
 # Levene-test (analysis of variance)
 CIRC_clin$MSI_STATUS <- as.factor(CIRC_clin$MSI_STATUS)
 # car:: leveneTest(CIRC_clin$CIRC_Genes, group = CIRC_clin$MSI_STATUS, center = "median") # Assumes normality
@@ -178,7 +173,7 @@ rbind(Test, asym)
 #   kable_styling()
 # readr::write_file(kable_out, "kable_out.html")
 
-#### Clustering ####
+# Clustering ----
 # Partitioning clustering
 ## Remove uneeded stuff
 CIRC_for_Cluster <- droplevels(subset(FPKM2, SYMBOL %in% CIRC_genes$CIRC_Genes))
@@ -272,9 +267,7 @@ ggplot(tsne_dimensions, aes(x = Dim1, y = Dim2, colour = CIRC_score)) +
 dev.off()
 
 
-
-
-#### Count patients + produce tables (nice) ####
+# Count patients
 library(knitr)
 # install.packages("rmarkdown")
 # library("rmarkdown")
@@ -282,7 +275,7 @@ library(knitr)
 kable(dcast(a, MSI_STATUS ~ Phenograph_Clusters, length), caption = "Phenograph clusters")
 head(tsne_out)
 
-#### Calculate CIRC Expression for cluster ####
+# Calculate CIRC Expression for clusters ----
 j <- a[, c("Patient.ID", "kmeans_Clusters", "Phenograph_Clusters", "MSI_STATUS")]
 df1a <- merge(Enrichment_CIRC1, j, by = "Patient.ID")
 df1 <- droplevels(subset(df1a, MSI_STATUS == "MSS"))
@@ -352,17 +345,269 @@ ggplot(df1a, aes(x = Subtype, y = CIRC_Genes)) +
 #           RowSideColors = col.cell1)
 
 
-#### WRITE OUT THE hiCIRC PATIENT SUBTYPES ####
+# WRITE OUT THE hiCIRC PATIENT SUBTYPES ----
 # write.csv("./Output/Patient_Subtypes.csv", x = df1a[, c("Patient.ID", "CIRC_Genes", "Subtype")], row.names = F)
 
-#### START ####
+# START ----
 load("FPKMs.RData")
 pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
 library(reshape2)
 dcast(pat_sub, Subtype ~., length)
 
-##### GENESETS #####
-# Bact
+# GENESET Interrogation ----
+library(GSVA)
+# Ping
+Ping <- read.csv("./Exploratory_Data/Genesets/Ping_Chih_Ho.csv")
+Ping <- factorthese(Ping, c("Name", "Gene"))
+
+Ping_List <- list()
+c <- 1
+for(i in levels(Ping$Name)){
+  print(i)
+  work <- droplevels(subset(Ping, Name == i))
+  Genes <- levels(work$Gene)
+  Ping_List[[i]] <- Genes
+  c <- c + 1
+  }
+
+Enrichment_Ping <- gsva(FPKM3, Ping_List)
+Enrichment_Ping1 <- Enrichment_Ping %>% as.data.frame() %>%
+  rownames_to_column(., var = "Geneset") %>%
+  gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
+  spread(., key = "Geneset", value = "Enrich")
+
+Enrichment_Ping1$Patient.ID <- as.factor(Enrichment_Ping1$Patient.ID)
+Enrich <- merge(pat_sub, Enrichment_Ping1, by = "Patient.ID")
+
+Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -CIRC_Genes, -Patient.ID, -Subtype)
+Enrich1$Parameter <- as.factor(Enrich1$Parameter)
+
+## Plot pearson correlation
+for(i in levels(Enrich1$Parameter)){
+  print(i)
+  work <- droplevels(subset(Enrich1, Parameter == i))
+  temp_plot <- ggplot(work, aes(y = Enrichment, x = CIRC_Genes))+
+    geom_point(alpha = 0.8, size = 4, colour = "slategray") +
+    labs(x = "CIRC enrichment score", y = paste(i, "enrichment score")) +
+    theme_bw() +
+    # geom_text(aes(x = -0.3, y = .75, label = lm_eqn(lm(CIRC_Genes ~ Enrichment, work))), parse = T) +
+    # scale_color_manual(values = cbcols) +
+    geom_smooth(method = "lm", se = F) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(legend.position = "none") +
+    stat_cor()
+  filen <- paste0(i, ".pdf")
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf", path = "./Figures/Gene_Sets/Pearson",
+                   height = 6, width = 6)
+  }
+
+# Cell Types (immunome and Castro [Th17])
+## Pearson correlation across genesets.
+CTGenesets <- read.csv("./Exploratory_Data/Genesets/Cell_Type_Geneset.csv")
+SigGenesets <- read.csv("./Exploratory_Data/Genesets/Signature_Geneset.csv")
+Genesets <- rbind(CTGenesets, SigGenesets)
+
+dd <- deduplicate(Genesets)
+
+geneset_list <- list()
+for(i in levels(Genesets$Parameter)){
+  print(i)
+  work <- droplevels(subset(Genesets, Parameter == i))
+  genes <- levels(work$Hugo_Symbol)
+  geneset_list[[i]] <- genes
+  }
+
+Enrichments <- gsva(FPKM3, geneset_list) %>% as.data.frame() %>%
+  rownames_to_column(., "Geneset") %>% gather(contains("TCGA"), key = "Patient.ID", value = "Enrichment") %>%
+  merge(., pat_sub, by = "Patient.ID")
+
+Enrichments$Geneset <- as.factor(Enrichments$Geneset)
+
+## Pearson
+for(i in levels(Enrichments$Geneset)){
+  print(i)
+  work <- droplevels(subset(Enrichments, Geneset == i))
+  temp_plot <- ggplot(work, aes(y = Enrichment, x = CIRC_Genes))+
+    geom_point(alpha = 0.8, size = 4, colour = "slategray") +
+    labs(x = "CIRC enrichment score", y = paste(i, "enrichment score")) +
+    theme_bw() +
+    # geom_text(aes(x = -0.3, y = .75, label = lm_eqn(lm(CIRC_Genes ~ Enrichment, work))), parse = T) +
+    # scale_color_manual(values = cbcols) +
+    geom_smooth(method = "lm", se = F) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(legend.position = "none") +
+    stat_cor()
+  filen <- paste0(i, ".pdf")
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf", path = "./Figures/Gene_Sets/Pearson",
+                   height = 6, width = 6)
+  }
+
+## Enrichment for Subtype
+for(i in levels(Enrichments$Geneset)){
+  print(i)
+  work <- droplevels(subset(Enrichments, Geneset == i))
+  temp_plot <- ggplot(work, aes(x = Subtype, y = Enrichment)) +
+    geom_boxplot(alpha = 0.5, width = 0.2) + 
+    geom_violin(aes(Subtype, fill = Subtype),
+                scale = "width", alpha = 0.8) +
+    scale_fill_manual(values = cbcols) +
+    labs(x = "MSI Status", y = paste(i, "enrichment score")) +
+    theme_bw() +
+    theme(axis.text = element_text(size = 16)) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(legend.direction = "horizontal", legend.position = "top") + 
+    stat_compare_means(comparisons = my_comparisons,
+                       label = "p.signif", method = "wilcox.test")
+  filen <- paste0(i, ".pdf")
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
+                   path = "./Figures/Gene_Sets/Enrichment",
+                   height = 6, width = 6)}
+
+# GO TERMS
+## Reactive Oxygen Species
+ROS <- read.csv("./Exploratory_Data/Genesets/GO_term_summary_20190320_151206.csv")
+
+ROS_list <- list()
+c <- 1
+for(i in levels(ROS$Annotated.Term)){
+  print(i)
+  work <- droplevels(subset(ROS, Annotated.Term == i))
+  Genes <- toupper(levels(work$Symbol))
+  ROS_list[[i]] <- Genes
+  c <- c + 1
+}
+
+Enrichment_book <- gsva(FPKM3, ROS_list)
+Enrichment_book1 <- Enrichment_book %>% as.data.frame() %>%
+  rownames_to_column(., var = "Geneset") %>%
+  gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
+  spread(., key = "Geneset", value = "Enrich")
+
+
+Enrichment_book1$Patient.ID <- as.factor(Enrichment_book1$Patient.ID)
+Enrich <- merge(pat_sub, Enrichment_book1, by = "Patient.ID")
+
+Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -CIRC_Genes, -Patient.ID, -Subtype)
+Enrich1$Parameter <- as.factor(Enrich1$Parameter)
+
+for(i in levels(Enrich1$Parameter)){
+  print(i)
+  work <- droplevels(subset(Enrich1, Parameter == i))
+  temp_plot <- ggplot(work, aes(x = Subtype, y = Enrichment)) +
+    geom_boxplot(alpha = 0.5, width = 0.2) + 
+    geom_violin(aes(Subtype, fill = Subtype),
+                scale = "width", alpha = 0.8) +
+    scale_fill_manual(values = cbcols) +
+    labs(x = "Subtype", y = paste(i, "enrichment score")) +
+    theme_bw() +
+    theme(axis.text = element_text(size = 16)) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(legend.direction = "horizontal", legend.position = "top") + 
+    stat_compare_means(comparisons = my_comparisons,
+                       label = "p.signif", method = "wilcox.test")
+  filen <- paste0(i, ".pdf")
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
+                   path = "./Figures/Gene_Sets/Enrichment/ROS",
+                   height = 6, width = 6)}
+
+# Fatty acid metabolism
+FAM  <- read.csv("./Exploratory_Data/Genesets/GO_term_summary_20190603_065405.csv")
+
+FAM_list <- list()
+c <- 1
+for(i in levels(FAM$Annotated.Term)){
+  print(i)
+  work <- droplevels(subset(FAM, Annotated.Term == i))
+  Genes <- toupper(levels(work$Symbol))
+  FAM_list[[i]] <- Genes
+  c <- c + 1
+}
+
+library(GSVA)
+Enrichment_book <- gsva(FPKM3, FAM_list)
+Enrichment_book1 <- Enrichment_book %>% as.data.frame() %>%
+  rownames_to_column(., var = "Geneset") %>%
+  gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
+  spread(., key = "Geneset", value = "Enrich")
+
+
+Enrichment_book1$Patient.ID <- as.factor(Enrichment_book1$Patient.ID)
+Enrich <- merge(pat_sub, Enrichment_book1, by = "Patient.ID")
+
+Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -CIRC_Genes, -Patient.ID, -Subtype)
+Enrich1$Parameter <- as.factor(Enrich1$Parameter)
+
+for(i in levels(Enrich1$Parameter)){
+  print(i)
+  work <- droplevels(subset(Enrich1, Parameter == i))
+  temp_plot <- ggplot(work, aes(x = Subtype, y = Enrichment)) +
+    geom_boxplot(alpha = 0.5, width = 0.2) + 
+    geom_violin(aes(Subtype, fill = Subtype),
+                scale = "width", alpha = 0.8) +
+    scale_fill_manual(values = cbcols) +
+    labs(x = "Subtype", y = paste(i, "enrichment score")) +
+    theme_bw() +
+    theme(axis.text = element_text(size = 16)) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(legend.direction = "horizontal", legend.position = "top") + 
+    stat_compare_means(comparisons = my_comparisons,
+                       label = "p.signif", method = "wilcox.test")
+  filen <- paste0(i, ".pdf")
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
+                   path = "./Figures/Gene_Sets/Enrichment/FAM",
+                   height = 6, width = 6)}
+
+
+# Phagocytosis
+Phago  <- read.csv("./Exploratory_Data/Genesets/GO_term_summary_20190603_065405.csv")
+
+Phago_list <- list()
+c <- 1
+for(i in levels(Phago$Annotated.Term)){
+  print(i)
+  work <- droplevels(subset(Phago, Annotated.Term == i))
+  Genes <- toupper(levels(work$Symbol))
+  Phago_list[[i]] <- Genes
+  c <- c + 1
+}
+
+library(GSVA)
+Enrichment_book <- gsva(FPKM3, Phago_list)
+Enrichment_book1 <- Enrichment_book %>% as.data.frame() %>%
+  rownames_to_column(., var = "Geneset") %>%
+  gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
+  spread(., key = "Geneset", value = "Enrich")
+
+
+Enrichment_book1$Patient.ID <- as.factor(Enrichment_book1$Patient.ID)
+Enrich <- merge(pat_sub, Enrichment_book1, by = "Patient.ID")
+
+Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -CIRC_Genes, -Patient.ID, -Subtype)
+Enrich1$Parameter <- as.factor(Enrich1$Parameter)
+
+for(i in levels(Enrich1$Parameter)){
+  print(i)
+  work <- droplevels(subset(Enrich1, Parameter == i))
+  temp_plot <- ggplot(work, aes(x = Subtype, y = Enrichment)) +
+    geom_boxplot(alpha = 0.5, width = 0.2) + 
+    geom_violin(aes(Subtype, fill = Subtype),
+                scale = "width", alpha = 0.8) +
+    scale_fill_manual(values = cbcols) +
+    labs(x = "Subtype", y = paste(i, "enrichment score")) +
+    theme_bw() +
+    theme(axis.text = element_text(size = 16)) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(legend.direction = "horizontal", legend.position = "top") + 
+    stat_compare_means(comparisons = my_comparisons,
+                       label = "p.signif", method = "wilcox.test")
+  filen <- paste0(i, ".pdf")
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
+                   path = "./Figures/Gene_Sets/Enrichment/Phago",
+                   height = 6, width = 6)}
+
+
+
+## Bespoke
 FPKM2$SYMBOL[grepl("S100A", FPKM2$SYMBOL)]
 book_list <- list()
 book_list[["SAAs"]] <- c("TLR4", "LY96"#,
@@ -419,188 +664,21 @@ ggplot(Enrich1, aes(x = Subtype, y = Enrichment)) +
                      label = "p.signif", method = "wilcox.test")
 dev.off()
 
-
-
-## ROS
-ROS <- read.csv("./Exploratory_Data/Genesets/GO_term_summary_20190320_151206.csv")
-
-ROS_list <- list()
-c <- 1
-for(i in levels(ROS$Annotated.Term)){
-  print(i)
-  work <- droplevels(subset(ROS, Annotated.Term == i))
-  Genes <- toupper(levels(work$Symbol))
-  ROS_list[[i]] <- Genes
-  c <- c + 1
-}
-
-
-library(GSVA)
-Enrichment_book <- gsva(FPKM3, ROS_list)
-Enrichment_book1 <- Enrichment_book %>% as.data.frame() %>%
-  rownames_to_column(., var = "Geneset") %>%
-  gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
-  spread(., key = "Geneset", value = "Enrich")
-
-
-Enrichment_book1$Patient.ID <- as.factor(Enrichment_book1$Patient.ID)
-Enrich <- merge(pat_sub, Enrichment_book1, by = "Patient.ID")
-
-Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -CIRC_Genes, -Patient.ID, -Subtype)
-Enrich1$Parameter <- as.factor(Enrich1$Parameter)
-
-for(i in levels(Enrich1$Parameter)){
-  print(i)
-  work <- droplevels(subset(Enrich1, Parameter == i))
-  temp_plot <- ggplot(work, aes(x = Subtype, y = Enrichment)) +
-    geom_boxplot(alpha = 0.5, width = 0.2) + 
-    geom_violin(aes(Subtype, fill = Subtype),
-                scale = "width", alpha = 0.8) +
-    scale_fill_manual(values = cbcols) +
-    labs(x = "Subtype", y = paste(i, "enrichment score")) +
-    theme_bw() +
-    theme(axis.text = element_text(size = 16)) +
-    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-    theme(legend.direction = "horizontal", legend.position = "top") + 
-    stat_compare_means(comparisons = my_comparisons,
-                       label = "p.signif", method = "wilcox.test")
-  filen <- paste0(i, ".pdf")
-  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
-                   path = "./Figures/Gene_Sets/Enrichment/ROS",
-                   height = 6, width = 6)}
-
-
-# Ping
-Ping <- read.csv("./Exploratory_Data/Genesets/Ping_Chih_Ho.csv")
-
-Ping_List <- list()
-Ping$Name <- as.factor(Ping$Name)
-Ping$Gene <- as.factor(Ping$Gene)
-
-c <- 1
-for(i in levels(Ping$Name)){
-  print(i)
-  work <- droplevels(subset(Ping, Name == i))
-  Genes <- levels(work$Gene)
-  Ping_List[[i]] <- Genes
-  c <- c + 1
-}
-
-Enrichment_Ping <- gsva(FPKM3, Ping_List)
-Enrichment_Ping1 <- Enrichment_Ping %>% as.data.frame() %>%
-  rownames_to_column(., var = "Geneset") %>%
-  gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
-  spread(., key = "Geneset", value = "Enrich")
-
-Enrichment_Ping1$Patient.ID <- as.factor(Enrichment_Ping1$Patient.ID)
-Enrich <- merge(pat_sub, Enrichment_Ping1, by = "Patient.ID")
-
-Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -CIRC_Genes, -Patient.ID, -Subtype)
-Enrich1$Parameter <- as.factor(Enrich1$Parameter)
-
-## Plot pearson correlation
-for(i in levels(Enrich1$Parameter)){
-  print(i)
-  work <- droplevels(subset(Enrich1, Parameter == i))
-  temp_plot <- ggplot(work, aes(y = Enrichment, x = CIRC_Genes))+
-    geom_point(alpha = 0.8, size = 4, colour = "slategray") +
-    labs(x = "CIRC enrichment score", y = paste(i, "enrichment score")) +
-    theme_bw() +
-    # geom_text(aes(x = -0.3, y = .75, label = lm_eqn(lm(CIRC_Genes ~ Enrichment, work))), parse = T) +
-    # scale_color_manual(values = cbcols) +
-    geom_smooth(method = "lm", se = F) +
-    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-    theme(legend.position = "none") +
-    stat_cor()
-  filen <- paste0(i, ".pdf")
-  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf", path = "./Figures/Gene_Sets/Pearson",
-                   height = 6, width = 6)
-}
-
-## Collated
-library(GSVA)
-# Pearson correlation across genesets.
-CTGenesets <- read.csv("./Exploratory_Data/Genesets/Cell_Type_Geneset.csv")
-SigGenesets <- read.csv("./Exploratory_Data/Genesets/Signature_Geneset.csv")
-Genesets <- rbind(CTGenesets, SigGenesets)
-
-dd <- deduplicate(Genesets)
-
-geneset_list <- list()
-for(i in levels(Genesets$Parameter)){
-  print(i)
-  work <- droplevels(subset(Genesets, Parameter == i))
-  genes <- levels(work$Hugo_Symbol)
-  geneset_list[[i]] <- genes
-}
-
-
-Enrichments <- gsva(FPKM3, geneset_list) %>% as.data.frame() %>%
-  rownames_to_column(., "Geneset") %>% gather(contains("TCGA"), key = "Patient.ID", value = "Enrichment") %>%
-  merge(., pat_sub, by = "Patient.ID")
-
-Enrichments$Geneset <- as.factor(Enrichments$Geneset)
-
-# Pearson
-for(i in levels(Enrichments$Geneset)){
-  print(i)
-  work <- droplevels(subset(Enrichments, Geneset == i))
-  temp_plot <- ggplot(work, aes(y = Enrichment, x = CIRC_Genes))+
-    geom_point(alpha = 0.8, size = 4, colour = "slategray") +
-    labs(x = "CIRC enrichment score", y = paste(i, "enrichment score")) +
-    theme_bw() +
-    # geom_text(aes(x = -0.3, y = .75, label = lm_eqn(lm(CIRC_Genes ~ Enrichment, work))), parse = T) +
-    # scale_color_manual(values = cbcols) +
-    geom_smooth(method = "lm", se = F) +
-    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-    theme(legend.position = "none") +
-    stat_cor()
-  filen <- paste0(i, ".pdf")
-  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf", path = "./Figures/Gene_Sets/Pearson",
-                   height = 6, width = 6)
-}
-
-# Enrichment for Subtype
-for(i in levels(Enrichments$Geneset)){
-  print(i)
-  work <- droplevels(subset(Enrichments, Geneset == i))
-  temp_plot <- ggplot(work, aes(x = Subtype, y = Enrichment)) +
-    geom_boxplot(alpha = 0.5, width = 0.2) + 
-    geom_violin(aes(Subtype, fill = Subtype),
-                scale = "width", alpha = 0.8) +
-    scale_fill_manual(values = cbcols) +
-    labs(x = "MSI Status", y = paste(i, "enrichment score")) +
-    theme_bw() +
-    theme(axis.text = element_text(size = 16)) +
-    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-    theme(legend.direction = "horizontal", legend.position = "top") + 
-    stat_compare_means(comparisons = my_comparisons,
-                       label = "p.signif", method = "wilcox.test")
-  filen <- paste0(i, ".pdf")
-  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
-                   path = "./Figures/Gene_Sets/Enrichment",
-                   height = 6, width = 6)}
-
-
-## Individual genes
-# how many pats
-dcast(pat_sub, Subtype ~., length)
-
+# INDIVIDUAL GENES INTERROGATION ----
 MA <- merge(FPKM, pat_sub[, c("Patient.ID", "Subtype", "CIRC_Genes")], by = "Patient.ID")
 genes_of_interest <- c("IL6", "IL1B", "IL23A", "TGFB1",
                        "CCL2", "CCL5", "CXCL10", "CCL20",
                        "CCR6", "TLR4", "TLR2", "CIITA",
                        "RORC", "IL17A", "IL23R",
-                       "CDC42", "FCAR", "IGHA1", "EHMT2")
+                       "CDC42", "FCAR", "IGHA1", "EHMT2", "OX40",
+                       "OX40L", "CD1D")
 
 GOI <- droplevels(MA[MA$SYMBOL %in% genes_of_interest, ]) %>%
   .[, c("Patient.ID", "SYMBOL", "FPKM", "Subtype", "CIRC_Genes")]
 GOI$SYMBOL <- as.factor(GOI$SYMBOL)
 
-### IMPORTANT BIT
+## Remove for Pearson correlation
 GOI1 <- droplevels(subset(GOI, Subtype != "MSI-H"))
-### IMPORTANT BIT
-
 for(i in levels(GOI1$SYMBOL)){
   print(i)
   work <- droplevels(subset(GOI1, SYMBOL == i))
@@ -621,9 +699,7 @@ for(i in levels(GOI1$SYMBOL)){
                    height = 6, width = 6)
 }
 
-
-
-
+## Compare across Subtypes
 for(i in 1:length(genes_of_interest)){
   gene <- genes_of_interest[i]
   print(gene)
@@ -646,17 +722,9 @@ for(i in 1:length(genes_of_interest)){
                    path = "./Figures/Genes_of_interest",
                    height = 6, width = 6)}
 
-FPKM2$SYMBOL[grepl("B2M", FPKM2$SYMBOL)]
+## Bespoke genes
+FPKM2$SYMBOL[grepl("B2M", FPKM2$SYMBOL)] # Check whether your gene exists in the dataset
 GOI <- droplevels(subset(MA, SYMBOL == "ADGRB1")) 
-
-# hiCIRC <- droplevels(subset(GOI, Subtype == "MSS-hiCIRC"))
-# mss <- droplevels(subset(GOI, Subtype == "MSS"))
-# msi <- droplevels(subset(GOI, Subtype == "MSI-H"))
-# 
-# 
-# median(hiCIRC$FPKM)
-# median(mss$FPKM)
-# median(msi$FPKM)
 
 GOI$Rank <- rank(GOI$FPKM)
 ggplot(GOI, aes(x = Subtype, y = Rank)) +
@@ -672,80 +740,9 @@ ggplot(GOI, aes(x = Subtype, y = Rank)) +
   stat_compare_means(comparisons = my_comparisons,
                      label = "p.signif", method = "wilcox.test")
 
-library(tidyverse)
-library(ggpubr)
-# OX40 and OX40L, and CD1D are selectively increased in MSS-hiCIORC patients  
-autoph<- read.delim("~/Downloads/geneset.txt", header = F)
-head(autoph)
-autoph <- autoph$V1
-autophagy <- list()
-autophagy[["GO_Autophagy"]] <- levels(autoph)
 
 
-Enrichments <- gsva(FPKM3, autophagy) %>% as.data.frame() %>%
-  rownames_to_column(., "Geneset") %>% gather(contains("TCGA"), key = "Patient.ID", value = "Enrichment") %>%
-  merge(., pat_sub, by = "Patient.ID")
-head(Enrichments)
-
-ggplot(Enrichments, aes(x = Subtype, y = Enrichment)) +
-  geom_boxplot(alpha = 0.5, width = 0.2) + 
-  geom_violin(aes(Subtype, fill = Subtype),
-              scale = "width", alpha = 0.8) +
-  scale_fill_manual(values = cbcols) +
-  labs(x = "MSI Status", y = "enrichment of Autophagy") +
-  theme_bw() +
-  theme(axis.text = element_text(size = 16)) +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-  theme(legend.direction = "horizontal", legend.position = "top") + 
-  stat_compare_means(comparisons = my_comparisons,
-                     label = "p.signif", method = "wilcox.test")
-
-
-
-
-
-
-
-## ROS
-ROS <- read.delim("~/Downloads/geneset.txt")
-head(ROS)
-ROS_list <- list()
-ROS_list[["wnt"]] <- levels(ROS$KEGG_WNT_SIGNALING_PATHWAY)
-# head(ROS_list)
-library(GSVA)
-# rownames(FPKM3)[grepl("WNT", rownames(FPKM3))]
-
-Enrichment_book <- gsva(FPKM3, ROS_list)
-Enrichment_book1 <- Enrichment_book %>% as.data.frame() %>%
-  rownames_to_column(., var = "Geneset") %>%
-  gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
-  spread(., key = "Geneset", value = "Enrich")
-
-
-Enrichment_book1$Patient.ID <- as.factor(Enrichment_book1$Patient.ID)
-Enrich <- merge(pat_sub, Enrichment_book1, by = "Patient.ID")
-
-Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -CIRC_Genes, -Patient.ID, -Subtype)
-Enrich1$Parameter <- as.factor(Enrich1$Parameter)
-
-levels(Enrich1$Parameter)
-
-work <- droplevels(subset(Enrich1, Parameter == "wnt"))
-ggplot(work, aes(x = Subtype, y = Enrichment)) +
-  geom_boxplot(alpha = 0.5, width = 0.2) + 
-  geom_violin(aes(Subtype, fill = Subtype),
-              scale = "width", alpha = 0.8) +
-  scale_fill_manual(values = cbcols) +
-  labs(x = "Subtype", y = paste(i, "enrichment score")) +
-  theme_bw() +
-  theme(axis.text = element_text(size = 16)) +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-  theme(legend.direction = "horizontal", legend.position = "top") + 
-  stat_compare_means(comparisons = my_comparisons,
-                     label = "p.signif", method = "wilcox.test")
-
-
-## Gary
+# THIS PART OF THE SCRIPT IS TO INVESTIGATE WHATEVER GARY WANTS ----
 work <- droplevels(subset(GOI1, SYMBOL == "EHMT2" | SYMBOL == "CIITA"))
 work$Logged <- log2(work$FPKM + 1)
 
@@ -767,108 +764,5 @@ filen <- paste0(i, ".pdf")
 ggplot2:: ggsave("CIITA_EHMT2_correl.pdf", plot = temp_plot, device = "pdf",
                  path = "./Figures/Genes_of_interest/Correlations",
                  height = 6, width = 6)
-
-
-
-
-# Fatty acid metabolism
-## FAM
-FAM  <- read.csv("./Exploratory_Data/Genesets/GO_term_summary_20190603_065405.csv")
-
-FAM_list <- list()
-c <- 1
-for(i in levels(FAM$Annotated.Term)){
-  print(i)
-  work <- droplevels(subset(FAM, Annotated.Term == i))
-  Genes <- toupper(levels(work$Symbol))
-  FAM_list[[i]] <- Genes
-  c <- c + 1
-}
-
-
-library(GSVA)
-Enrichment_book <- gsva(FPKM3, FAM_list)
-Enrichment_book1 <- Enrichment_book %>% as.data.frame() %>%
-  rownames_to_column(., var = "Geneset") %>%
-  gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
-  spread(., key = "Geneset", value = "Enrich")
-
-
-Enrichment_book1$Patient.ID <- as.factor(Enrichment_book1$Patient.ID)
-Enrich <- merge(pat_sub, Enrichment_book1, by = "Patient.ID")
-
-Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -CIRC_Genes, -Patient.ID, -Subtype)
-Enrich1$Parameter <- as.factor(Enrich1$Parameter)
-
-for(i in levels(Enrich1$Parameter)){
-  print(i)
-  work <- droplevels(subset(Enrich1, Parameter == i))
-  temp_plot <- ggplot(work, aes(x = Subtype, y = Enrichment)) +
-    geom_boxplot(alpha = 0.5, width = 0.2) + 
-    geom_violin(aes(Subtype, fill = Subtype),
-                scale = "width", alpha = 0.8) +
-    scale_fill_manual(values = cbcols) +
-    labs(x = "Subtype", y = paste(i, "enrichment score")) +
-    theme_bw() +
-    theme(axis.text = element_text(size = 16)) +
-    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-    theme(legend.direction = "horizontal", legend.position = "top") + 
-    stat_compare_means(comparisons = my_comparisons,
-                       label = "p.signif", method = "wilcox.test")
-  filen <- paste0(i, ".pdf")
-  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
-                   path = "./Figures/Gene_Sets/Enrichment/FAM",
-                   height = 6, width = 6)}
-
-
-# Phagocytosis
-## Phago
-Phago  <- read.csv("./Exploratory_Data/Genesets/GO_term_summary_20190603_065405.csv")
-
-Phago_list <- list()
-c <- 1
-for(i in levels(Phago$Annotated.Term)){
-  print(i)
-  work <- droplevels(subset(Phago, Annotated.Term == i))
-  Genes <- toupper(levels(work$Symbol))
-  Phago_list[[i]] <- Genes
-  c <- c + 1
-}
-
-
-library(GSVA)
-Enrichment_book <- gsva(FPKM3, Phago_list)
-Enrichment_book1 <- Enrichment_book %>% as.data.frame() %>%
-  rownames_to_column(., var = "Geneset") %>%
-  gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
-  spread(., key = "Geneset", value = "Enrich")
-
-
-Enrichment_book1$Patient.ID <- as.factor(Enrichment_book1$Patient.ID)
-Enrich <- merge(pat_sub, Enrichment_book1, by = "Patient.ID")
-
-Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -CIRC_Genes, -Patient.ID, -Subtype)
-Enrich1$Parameter <- as.factor(Enrich1$Parameter)
-
-for(i in levels(Enrich1$Parameter)){
-  print(i)
-  work <- droplevels(subset(Enrich1, Parameter == i))
-  temp_plot <- ggplot(work, aes(x = Subtype, y = Enrichment)) +
-    geom_boxplot(alpha = 0.5, width = 0.2) + 
-    geom_violin(aes(Subtype, fill = Subtype),
-                scale = "width", alpha = 0.8) +
-    scale_fill_manual(values = cbcols) +
-    labs(x = "Subtype", y = paste(i, "enrichment score")) +
-    theme_bw() +
-    theme(axis.text = element_text(size = 16)) +
-    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-    theme(legend.direction = "horizontal", legend.position = "top") + 
-    stat_compare_means(comparisons = my_comparisons,
-                       label = "p.signif", method = "wilcox.test")
-  filen <- paste0(i, ".pdf")
-  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
-                   path = "./Figures/Gene_Sets/Enrichment/Phago",
-                   height = 6, width = 6)}
-
 
 
