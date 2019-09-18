@@ -141,6 +141,9 @@ ggplot(CIRC_clin, aes(x = MSI_STATUS, y = CIRC_Genes)) +
                      label = "p.signif", method = "wilcox.test")
 # dev.off()
 
+kable(dcast(CIRC_clin, MSI_STATUS ~ ., length))
+
+
 # Analysing variance differences
 # Levene-test (analysis of variance)
 CIRC_clin$MSI_STATUS <- as.factor(CIRC_clin$MSI_STATUS)
@@ -194,6 +197,8 @@ fviz_nbclust(my_data[, !('%in%'(names(my_data), c("Patient.ID", "MSI_STATUS")))]
 dev.off()
 
 ## Perform Phenograph and kmeans
+# BiocManager::install("devtools")
+devtools:: install_github("https://github.com/JinmiaoChenLab/Rphenograph")
 library(Rphenograph)
 set.seed(1)
 a <- cbind(my_data, Phenograph_Clusters = factor(Rphenograph(my_data[, !('%in%'(names(my_data), c("Patient.ID", "MSI_STATUS")))])[[2]]$membership), 
@@ -269,6 +274,7 @@ dev.off()
 
 # Count patients
 library(knitr)
+library(reshape2)
 # install.packages("rmarkdown")
 # library("rmarkdown")
 
@@ -305,12 +311,16 @@ ggplot(df1, aes(x = Phenograph_Clusters, y = CIRC_Genes)) +
                      label = "p.signif", method = "wilcox.test")
 dev.off()
 
+# Determine CIRC patients based on CIRC score
 remove_low_CIRC <- df[tsne_dimensions$Dim1 >= (-25) & tsne_dimensions$Dim1 <= -5, ]
 lessthan <- rownames_to_column(remove_low_CIRC, var = "Patient.ID")
 lt <- merge(lessthan, Clin_614, by = "Patient.ID")
 hiCIRC_pats <- droplevels(subset(lt, MSI_STATUS == "MSS"))$Patient.ID
-
 df1a$Subtype <- ifelse((df1a$Patient.ID %in% hiCIRC_pats), "MSS-hiCIRC", as.character(df1a$MSI_STATUS))
+
+# Remove the MSS-hiCIRC patients who are POLE mutants
+POLE <- read.csv("Output/POLE_mutants.csv")$.
+df1a$Subtype <- ifelse((df1a$Patient.ID %in% POLE), as.character(df1a$MSI_STATUS), as.character(df1a$Subtype))
 
 ggplot(df1a, aes(x = Subtype, y = CIRC_Genes)) +
   geom_boxplot(alpha = 0.5, width = 0.2) +
@@ -355,7 +365,9 @@ library(reshape2)
 dcast(pat_sub, Subtype ~., length)
 
 # GENESET Interrogation ----
+# BiocManager::install("GSVA")
 library(GSVA)
+
 # Ping
 Ping <- read.csv("./Exploratory_Data/Genesets/Ping_Chih_Ho.csv")
 Ping <- factorthese(Ping, c("Name", "Gene"))

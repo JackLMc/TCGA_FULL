@@ -55,15 +55,18 @@ model <- glm(Subtype ~.,family = binomial(link = "logit"), data = my_data, contr
 summary(model)
 library(MASS)
 stepAIC(model)
-bet_model <- glm(formula = Subtype ~ CCL5 + CXCL10 + CXCL9 + HAVCR2 + HLA.DOA + 
-                   HLA.DPA1 + HLA.DRA + HLA.DRB5 + ICAM1 + LAG3 + PDCD1LG2 + 
-                   STAT1, family = binomial(link = "logit"), data = my_data, control = list(maxit = 50))
+bet_model <- glm(formula = Subtype ~ CD4 + CXCL10 + HLA.DOA + HLA.DPA1 + HLA.DQA1 + 
+                   HLA.DRA + HLA.DRB5 + ICAM1 + LAG3 + PDCD1LG2, family = binomial(link = "logit"), 
+                 data = my_data, control = list(maxit = 50))
 stepAIC(bet_model)
 summary(bet_model)
+
+
 test_model <- glm(formula = Subtype ~  HLA.DPA1 + HLA.DPB1 + HLA.DQA1 + HLA.DQA2 + HLA.DRA + HLA.DRB5, family = binomial(link = "logit"), 
                  data = my_data)
 stepAIC(test_model)
 summary(test_model)
+
 # While no exact equivalent to the R2 of linear regression exists, the McFadden R2 index can be used to assess the model fit.
 library(pscl)
 pR2(bet_model)

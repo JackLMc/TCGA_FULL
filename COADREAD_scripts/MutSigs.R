@@ -15,7 +15,7 @@ library(maftools)
 # Read in the public mutation data and merge with the clinical data ----
 muta <- read.maf("./Data/Mutations/mc3.v0.2.8.PUBLIC.maf")
 
-mutation <- muta@data # THIS IS SOMATIC SNPs
+mutation <- muta@data # THESE ARE SOMATIC SNPs
 mutation$IMPACT <- as.factor(mutation$IMPACT)
 mutation$Patient.ID <- samptopat(mutation$Tumor_Sample_Barcode)
 mutation$Patient.ID <- gsub("-", ".", mutation$Patient.ID)
@@ -27,6 +27,11 @@ tcga_mut <- mutation[mutation$Patient.ID %in% pat_sub$Patient.ID, ]
 tcga_mut <- factorthese(tcga_mut, c("Feature_type", "Feature", "BIOTYPE",
                                     "VARIANT_CLASS", "Variant_Classification",
                                     "Consequence", "Variant_Type", "Variant"))
+
+
+POLE_muts <- droplevels(subset(tcga_mut, Hugo_Symbol == "POLE" | Hugo_Symbol == "POLD1"))
+POLE_pats <- POLE_muts[duplicated(POLE_muts$Patient.ID), ]$Patient.ID %>% as.data.frame()
+write.csv(POLE_pats, file = "./Output/POLE_mutants.csv", row.names = F)
 
 # Number of mutations between groups ----
 # Count up
