@@ -49,6 +49,8 @@ mut_clin <- Mutation_numbers %>%
   merge(., pat_sub[, c("Patient.ID", "Subtype")], by = "Patient.ID") %>%
   gather(., -"Patient.ID", -"Subtype", key = "Variant", value = "Number") %>% droplevels()
 
+mut_clin <- factorthese(mut_clin, c("Patient.ID", "Variant"))
+
 # Plot
 ## All
 for(i in levels(mut_clin$Variant)){
@@ -71,16 +73,15 @@ for(i in levels(mut_clin$Variant)){
 
 
 # Remove silent
-tcga_mut[, grep("Silent", ignore.case = T, tcga_mut)] %>% head()
-
-
-
+# tcga_mut[, grep("Silent", ignore.case = T, tcga_mut)] %>% head()
 
 Mutation_numbers <- tcga_mut %>%
   dplyr:: group_by(Patient.ID, Consequence) %>%
   dplyr:: summarise(length(Consequence)) %>%
-  spread(key = "Consequence", value = "length(Consequence)")%>%
-  mutate_all(funs(replace(., is.na(.), 0))) %>% as.data.frame()
+  spread(key = "Consequence", value = "length(Consequence)") %>% 
+  as.data.frame()
+Mutation_numbers[is.na(Mutation_numbers)] <- 0
+
 Mutation_numbers$TOTAL <- rowSums(Mutation_numbers[!'%in%'(names(Mutation_numbers), "Patient.ID")])
 
 mut_clin <- Mutation_numbers %>% 
@@ -331,6 +332,7 @@ dev.off()
 
 save.image("./R_Data/Mutations.RData")
 load("./R_Data/Mutations.RData")
+
 ## Pick from geneCloud plot - clustered mutations?
 lollipopPlot(muta1, gene = "APC")
 lollipopPlot(muta2, gene = "APC")
@@ -440,8 +442,9 @@ write.csv(file = "./Output/KRAS_mutants", KRAS, row.names = F)
 #### Mutated pathways ####
 if (!requireNamespace("BiocManager", quietly = T))
   install.packages("BiocManager")
-BiocManager::install("seq2pathway", version = "3.8")
 
+BiocManager::install("seq2pathway")
+devtools:: install_github("https://github.com/cran/WGCNA")
 library(seq2pathway)
 
 

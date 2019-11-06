@@ -330,7 +330,6 @@ for(i in levels(pathseq6$kingdom)){
                    path = "./Figures/PathSeq/Diversity/MMR_Samp_Type",
                    height = 6, width = 6)
   }
-
 div <- droplevels(subset(pathseq4b, type == "species"))
 library(vegan)
 thesecols <- c("Sample.ID", "name", "reads")
@@ -429,10 +428,20 @@ tsne_dimensions <- as.data.frame(tsne_out$Y)
 colnames(tsne_dimensions) <- c("Dim1", "Dim2")
 
 
+head(samp_pat_sub3)
+
+these_ <- droplevels(subset(samp_pat_sub3, Sample.Type != "Blood Derived Normal" & Sample.Type != "Solid Tissue Normal"))
+prin5 <- prin4[rownames(prin4) %in% these_$Sample.ID, ]
+
+tsne_out <- Rtsne(as.matrix(prin5))
+tsne_dimensions <- as.data.frame(tsne_out$Y)
+colnames(tsne_dimensions) <- c("Dim1", "Dim2")
+
+
 ## tSNE plot - looks the same as PCA just on a different axis
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 # pdf("./Figures/Clustering/CIRC_PhenoGraph_tsNE.pdf")
-ggplot(tsne_dimensions, aes(x = Dim1, y = Dim2, colour = samp_pat_sub3$Unique)) +
+ggplot(tsne_dimensions, aes(x = Dim1, y = Dim2, colour = these_$Unique)) +
   geom_point(size = 4, alpha = 0.8, pch = 20) +
   theme_bw() +
   theme(axis.text = element_text(size = 16)) +
