@@ -120,9 +120,16 @@ head(SNP_normals)[, 1:6]
 working_SNPs <- SNP_normals[rownames(SNP_normals) %in% undup_hiCIRC, ]
 df1 <- rownames_to_column(as.data.frame(working_SNPs), var = "file_id")
 df2 <- merge(df1, hiCIRC_normals[, c("file_id", "Patient.ID")], by = "file_id") %>% column_to_rownames(., var = "Patient.ID")
-df3 <- df2[, !('%in%'(colnames(df2), "file_id")) ]
+mat1 <- df2[, !('%in%'(colnames(df2), "file_id")) ] %>% as.matrix %>% t() %>% as.data.frame()
+
+str(mat1)
+count(mat1, "TCGA.CM.6679")
+
+df3 <- factorthese(mat1, colnames(mat1))
+
+
 str(df3)
-df3 <- factorthese(df3, colnames(df3))
+# df3 <- factorthese(df3, colnames(df3))
 str(df3)
 
 #
