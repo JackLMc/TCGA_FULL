@@ -135,7 +135,7 @@ for(i in names(df3)){
   colnames(list_of_freq[[i]]) <- c("Factor_levels", "Frequency", "Patient.ID")
   }
 DF <- bind_rows(list_of_freq)
-
+save.image("./Data/SNPs/")
 ### NEED TO MAKE SURE IT'S FULL... SOME PATIENTS DON'T HAVE ANY -1 COUNTS == Fill this in!
 
 
