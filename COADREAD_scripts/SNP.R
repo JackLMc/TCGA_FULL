@@ -122,17 +122,21 @@ df1 <- rownames_to_column(as.data.frame(working_SNPs), var = "file_id")
 df2 <- merge(df1, hiCIRC_normals[, c("file_id", "Patient.ID")], by = "file_id") %>% column_to_rownames(., var = "Patient.ID")
 mat1 <- df2[, !('%in%'(colnames(df2), "file_id")) ] %>% as.matrix %>% t() %>% as.data.frame()
 
-str(mat1)
-count(mat1, "TCGA.CM.6679")
-
 df3 <- factorthese(mat1, colnames(mat1))
 
+# Creating a frequency table
+list_of_freq <- list()
+for(i in names(df3)){
+  print(i)
+  work <- df3[[i]]
+  partA <- table(work) %>% as.data.frame %>% mutate_all(as.character)
+  partA$Patient.ID <- i
+  list_of_freq[[i]] <- partA
+  colnames(list_of_freq[[i]]) <- c("Factor_levels", "Frequency", "Patient.ID")
+  }
+DF <- bind_rows(list_of_freq)
 
-str(df3)
-# df3 <- factorthese(df3, colnames(df3))
-str(df3)
-
-#
+### NEED TO MAKE SURE IT'S FULL... SOME PATIENTS DON'T HAVE ANY -1 COUNTS == Fill this in!
 
 
 ## Other information...
