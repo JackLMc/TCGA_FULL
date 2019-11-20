@@ -129,7 +129,7 @@ df3a <- df3[!('%in%'(rownames(df3), rownames(minus_1))), ]
 dim(df3a)
 
 
-# Creating a frequency table
+# Creating a frequency table - change to df3 if you want to leave the SNPs which are -1 in...
 list_of_freq <- list()
 for(i in names(df3a)){
   print(i)
