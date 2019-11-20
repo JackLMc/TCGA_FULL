@@ -135,7 +135,82 @@ for(i in names(df3)){
   colnames(list_of_freq[[i]]) <- c("Factor_levels", "Frequency", "Patient.ID")
   }
 DF <- bind_rows(list_of_freq)
-save.image("./Data/SNPs/")
+# save.image("./Data/SNPs/")
+
+# -1 Factor_level is likely those which haven't been called successfully. 
+
+DF$Frequency <- as.numeric(DF$Frequency)
+droplevels(subset(DF, Factor_levels == -1))
+try <- droplevels(subset(DF, Patient.ID == "TCGA.CM.5344"))
+sum(try$Frequency)
+
+
+DF1 <- droplevels(subset(DF, Factor_levels != -1))
+
+
+head(DF1)
+hiCIRC
+
+
+DF2 <- merge(DF1, hiCIRC[, c("Patient.ID", "Subtype")], by = "Patient.ID")
+head(DF2)
+
+DF2$Unique <- paste(DF2$Subtype, DF2$Factor_levels, sep = "_") %>% as.factor()
+
+str(DF2)
+
+DF3 <- data.frame()
+c <- 1
+for(i in levels(DF2$Unique)){
+  print(i)
+  work <- droplevels(subset(DF2, Unique == i))
+  summed <- sum(work$Frequency)
+  DF3[c, "Unique"] <- i
+  DF3[c, "Total_Frequency"] <- summed
+  c <- c + 1
+  }
+
+DF4 <- separate(DF3, col = "Unique", into = c("Subtype", "Allele"), sep = "_") %>% 
+  spread(., key = "Allele", value = "Total_Frequency", sep = "_")
+
+colnames(DF4) <- gsub("Allele_", "", colnames(DF4))
+
+DF4$Total <- rowSums(DF4[, !('%in%'(colnames(DF4), "Subtype"))]) 
+col_total <- colSums(DF4[, !('%in%'(colnames(DF4), c("Subtype")))])
+
+
+
+
+totals <- as.data.frame(col_total) %>% t
+Subtype <- "Total"
+add_on <- cbind(Subtype, totals) %>% as.data.frame()
+add_on$`0` <- as.numeric(as.character(add_on$`0`))
+add_on$`1` <- as.numeric(as.character(add_on$`1`))
+add_on$`2` <- as.numeric(as.character(add_on$`2`))
+add_on$`Total` <- as.numeric(as.character(add_on$`Total`))
+rownames(add_on) <- NULL
+
+
+DF5 <- rbind(DF4, add_on)
+
+chisq.test(DF5$`0`, DF5$`1`)
+chisq.test(DF5$`0`, DF5$`2`)
+chisq.test(DF5$`1`, DF5$`2`)
+
+
+DF6 <- droplevels(subset(DF5, Subtype != "Total"))
+rownames(DF6) <- NULL
+
+DF7 <- column_to_rownames(DF6, var = "Subtype")
+
+chisq.test(DF7[, !('%in%'(colnames(DF7), "Total"))])
+DF7[, !('%in%'(colnames(DF7), "Total"))]
+
+
+# P-value is highly significant, if I remove the genotypes which are -1 from the few patients.
+
+
+
 ### NEED TO MAKE SURE IT'S FULL... SOME PATIENTS DON'T HAVE ANY -1 COUNTS == Fill this in!
 
 
