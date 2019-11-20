@@ -2,7 +2,6 @@
 library(tidyverse)
 library(UsefulFunctions)
 
-
 SNP <- read.delim("./Data/SNPs/matrix_genotypes.final.txt")
 
 SNP1 <- column_to_rownames(SNP, var = "snpID") %>% 
@@ -124,40 +123,42 @@ mat1 <- df2[, !('%in%'(colnames(df2), "file_id")) ] %>% as.matrix %>% t() %>% as
 
 df3 <- factorthese(mat1, colnames(mat1))
 
+### COMING FROM BELOW...
+head(df3)[, 1:6]
+df3a <- df3[!('%in%'(rownames(df3), rownames(minus_1))), ]
+dim(df3a)
+
+
 # Creating a frequency table
 list_of_freq <- list()
-for(i in names(df3)){
+for(i in names(df3a)){
   print(i)
-  work <- df3[[i]]
+  work <- df3a[[i]]
   partA <- table(work) %>% as.data.frame %>% mutate_all(as.character)
   partA$Patient.ID <- i
   list_of_freq[[i]] <- partA
   colnames(list_of_freq[[i]]) <- c("Factor_levels", "Frequency", "Patient.ID")
   }
 DF <- bind_rows(list_of_freq)
+DF$Frequency <- as.numeric(DF$Frequency)
+
 # save.image("./Data/SNPs/")
 
 # -1 Factor_level is likely those which haven't been called successfully. 
+patients_with_minus <- droplevels(subset(DF, Factor_levels == -1))$Patient.ID
+this <- df3[, colnames(df3) %in% patients_with_minus]
+minus_1 <- droplevels(subset(this, TCGA.AA.3560 == -1))
+minus <- numericthese(minus_1, colnames(minus_1))
+minus[colSums(minus) != -257]
+rownames(minus_1)
+### GO BACK ABOVE
 
-DF$Frequency <- as.numeric(DF$Frequency)
-droplevels(subset(DF, Factor_levels == -1))
-try <- droplevels(subset(DF, Patient.ID == "TCGA.CM.5344"))
-sum(try$Frequency)
 
+# All the negative 1 are in the same SNPs!
 
 DF1 <- droplevels(subset(DF, Factor_levels != -1))
-
-
-head(DF1)
-hiCIRC
-
-
 DF2 <- merge(DF1, hiCIRC[, c("Patient.ID", "Subtype")], by = "Patient.ID")
-head(DF2)
-
 DF2$Unique <- paste(DF2$Subtype, DF2$Factor_levels, sep = "_") %>% as.factor()
-
-str(DF2)
 
 DF3 <- data.frame()
 c <- 1
@@ -178,9 +179,6 @@ colnames(DF4) <- gsub("Allele_", "", colnames(DF4))
 DF4$Total <- rowSums(DF4[, !('%in%'(colnames(DF4), "Subtype"))]) 
 col_total <- colSums(DF4[, !('%in%'(colnames(DF4), c("Subtype")))])
 
-
-
-
 totals <- as.data.frame(col_total) %>% t
 Subtype <- "Total"
 add_on <- cbind(Subtype, totals) %>% as.data.frame()
@@ -192,22 +190,20 @@ rownames(add_on) <- NULL
 
 
 DF5 <- rbind(DF4, add_on)
-
-chisq.test(DF5$`0`, DF5$`1`)
-chisq.test(DF5$`0`, DF5$`2`)
-chisq.test(DF5$`1`, DF5$`2`)
-
-
 DF6 <- droplevels(subset(DF5, Subtype != "Total"))
 rownames(DF6) <- NULL
 
-DF7 <- column_to_rownames(DF6, var = "Subtype")
+DF7 <- column_to_rownames(DF6, var = "Subtype") 
+DF8 <- DF7[rownames(DF7) != "MSI-H", ] # remove the MSI-H patients to see if that affects it.
 
-chisq.test(DF7[, !('%in%'(colnames(DF7), "Total"))])
+chisq.test(DF7[, !('%in%'(colnames(DF8), "Total"))])
+
+
 DF7[, !('%in%'(colnames(DF7), "Total"))]
 
 
-# P-value is highly significant, if I remove the genotypes which are -1 from the few patients.
+# P-value is highly significant, if I remove the genotypes which are -1 from the few patients (2.2e-16)
+# Remove the SNPs from the analysis all together, p-value is the same if you remove all the SNPs (2.2e-16)
 
 
 
