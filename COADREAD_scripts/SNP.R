@@ -206,10 +206,6 @@ DF7[, !('%in%'(colnames(DF7), "Total"))]
 # Remove the SNPs from the analysis all together, p-value is the same if you remove all the SNPs (2.2e-16)
 
 
-
-### NEED TO MAKE SURE IT'S FULL... SOME PATIENTS DON'T HAVE ANY -1 COUNTS == Fill this in!
-
-
 ## Other information...
 list_of_diagnoses <- list()
 for(i in names(list_of_cases)){
