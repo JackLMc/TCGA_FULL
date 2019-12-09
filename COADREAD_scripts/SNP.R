@@ -113,32 +113,67 @@ nlevels(MSI$Patient.ID)
 
 # Some patients have duplications, take first instance of these patients
 undup_hiCIRC <- hiCIRC_normals[!duplicated(hiCIRC_normals$Patient.ID),]$file_id %>% as.character
-head(SNP_normals)[, 1:6]
-
-
 working_SNPs <- SNP_normals[rownames(SNP_normals) %in% undup_hiCIRC, ]
+
+
 df1 <- rownames_to_column(as.data.frame(working_SNPs), var = "file_id")
 df2 <- merge(df1, hiCIRC_normals[, c("file_id", "Patient.ID")], by = "file_id") %>% column_to_rownames(., var = "Patient.ID")
-mat1 <- df2[, !('%in%'(colnames(df2), "file_id")) ] %>% as.matrix %>% t() %>% as.data.frame()
-
+mat1 <- df2[, !('%in%'(colnames(df2), "file_id")) ] %>% as.matrix %>% as.data.frame()
 df3 <- factorthese(mat1, colnames(mat1))
 
-### COMING FROM BELOW...
-head(df3)[, 1:6]
-df3a <- df3[!('%in%'(rownames(df3), rownames(minus_1))), ]
-dim(df3a)
+these_patients <- hiCIRC[hiCIRC$Patient.ID %in% rownames(mat1), c("Patient.ID", "Subtype")]
+write.csv("./Output/Patients_for_SNPs.csv", row.names = F, x = these_patients)
 
+
+# Table for 
+df4 <- rownames_to_column(df3, var = "Patient.ID")
+df5 <- merge(df4, these_patients, by = "Patient.ID")
+
+
+rm(list=setdiff(ls(), c("df3", "df4", "df5", "mat1", "these_patients")))
+
+save.image("./Output/SNP.RData")
+load("./Output/SNP.RData")
+library(tidyverse)
+
+list_of_freq <- list()
+c <- 1
+for(i in levels(df5$Subtype)){
+  print(i)
+  work <- df5[levels(df5$Subtype) %in% i, ]
+  work1 <- work[, !('%in%'(colnames(work), "Subtype"))]
+  rownames(work1) <- NULL
+  work2 <- column_to_rownames(work1, var = "Patient.ID")
+  
+  for(j in colnames(work2)){
+    print(j)
+    work3 <- work2[[j]]
+    partA <- table(work3) %>% as.data.frame %>% mutate_all(as.character)
+    partA$SNP <- j
+    partA$Subtype <- i
+    list_of_freq[[i]] <- partA
+    colnames(list_of_freq[[i]]) <- c("Factor_levels", "Frequency", "SNP", "Subtype")
+  }
+  c <- c + 1
+}
+
+head(list_of_freq)
 
 # Creating a frequency table - change to df3 if you want to leave the SNPs which are -1 in...
 list_of_freq <- list()
-for(i in names(df3a)){
+for(i in colnames(df3)){
   print(i)
-  work <- df3a[[i]]
+  work <- df3[[i]]
   partA <- table(work) %>% as.data.frame %>% mutate_all(as.character)
-  partA$Patient.ID <- i
+  partA$SNP <- i
   list_of_freq[[i]] <- partA
-  colnames(list_of_freq[[i]]) <- c("Factor_levels", "Frequency", "Patient.ID")
-  }
+  colnames(list_of_freq[[i]]) <- c("Factor_levels", "Frequency", "SNP")
+}
+
+
+
+
+head(list_of_freq)
 DF <- bind_rows(list_of_freq)
 DF$Frequency <- as.numeric(DF$Frequency)
 
@@ -146,15 +181,29 @@ DF$Frequency <- as.numeric(DF$Frequency)
 
 # -1 Factor_level is likely those which haven't been called successfully. 
 patients_with_minus <- droplevels(subset(DF, Factor_levels == -1))$Patient.ID
-this <- df3[, colnames(df3) %in% patients_with_minus]
-minus_1 <- droplevels(subset(this, TCGA.AA.3560 == -1))
+this <- df3[, rownames(df3) %in% patients_with_minus]
+View(this[, 1:10])
+
+minus_1 <- this[-1, ] %>% head()[, 1:6]
 minus <- numericthese(minus_1, colnames(minus_1))
 minus[colSums(minus) != -257]
 rownames(minus_1)
-### GO BACK ABOVE
 
 
-# All the negative 1 are in the same SNPs!
+df3a <- df3[!('%in%'(rownames(df3), rownames(minus_1))), ]
+dim(df3a)
+
+# Creating a frequency table
+list_of_freq <- list()
+for(i in colnames(df3a)){
+  print(i)
+  work <- df3a[[i]]
+  partA <- table(work) %>% as.data.frame %>% mutate_all(as.character)
+  partA$SNP <- i
+  list_of_freq[[i]] <- partA
+  colnames(list_of_freq[[i]]) <- c("Factor_levels", "Frequency", "SNP")
+}
+DF <- bind_rows(list_of_freq)
 
 DF1 <- droplevels(subset(DF, Factor_levels != -1))
 DF2 <- merge(DF1, hiCIRC[, c("Patient.ID", "Subtype")], by = "Patient.ID")
