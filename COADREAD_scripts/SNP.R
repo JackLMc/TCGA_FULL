@@ -151,11 +151,14 @@ for(i in levels(df5$Subtype)){
     partA <- table(work3) %>% as.data.frame %>% mutate_all(as.character)
     partA$SNP <- j
     partA$Subtype <- i
-    list_of_freq[[i]] <- partA
-    colnames(list_of_freq[[i]]) <- c("Factor_levels", "Frequency", "SNP", "Subtype")
+    named_part <- paste(i, which(colnames(work2)==j), sep = "_")
+    list_of_freq[[named_part]] <- partA
+    colnames(list_of_freq[[named_part]]) <- c("Factor_levels", "Frequency", "SNP", "Subtype")
   }
   c <- c + 1
 }
+
+
 
 head(list_of_freq)
 save.image("./Output/SNP.RData")
