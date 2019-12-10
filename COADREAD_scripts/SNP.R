@@ -158,7 +158,7 @@ for(i in levels(df5$Subtype)){
 }
 
 head(list_of_freq)
-
+save.image("./Output/SNP.RData")
 # Creating a frequency table - change to df3 if you want to leave the SNPs which are -1 in...
 list_of_freq <- list()
 for(i in colnames(df3)){
