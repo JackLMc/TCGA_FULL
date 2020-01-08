@@ -118,6 +118,14 @@ working_SNPs <- SNP_normals[rownames(SNP_normals) %in% undup_hiCIRC, ]
 
 df1 <- rownames_to_column(as.data.frame(working_SNPs), var = "file_id")
 df2 <- merge(df1, hiCIRC_normals[, c("file_id", "Patient.ID")], by = "file_id") %>% column_to_rownames(., var = "Patient.ID")
+
+head(df2)[, 1:6]
+this_bit <- rownames_to_column(df2, var = "Patient.ID") %>% .[, 1:2]
+TB <- merge(this_bit, hiCIRC, by = "Patient.ID")[, c("Patient.ID", "file_id", "Subtype")]
+
+write.csv(TB, file = "./Output/file_id_pats_SNP.csv", row.names = F)
+
+
 mat1 <- df2[, !('%in%'(colnames(df2), "file_id")) ] %>% as.matrix %>% as.data.frame()
 df3 <- factorthese(mat1, colnames(mat1))
 
@@ -157,6 +165,21 @@ for(i in levels(df5$Subtype)){
   }
   c <- c + 1
 }
+
+
+
+
+
+
+
+
+
+
+
+######### END ##########
+
+
+
 
 
 
