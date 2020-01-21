@@ -16,3 +16,8 @@ all.equal(see$Subtype_B, see$Subtype)
 
 
 ### Are the SNPs the same in the cancer?
+
+
+
+
+
