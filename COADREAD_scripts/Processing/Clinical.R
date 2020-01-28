@@ -4,14 +4,6 @@ library(UsefulFunctions)
 library(tidyverse)
 library(ggpubr)
 
-my_comparisons <- list(c("MSS-hiCIRC", "MSI-H"),
-                       c("MSS-hiCIRC", "MSS"),
-                       c("MSI-H", "MSS"))
-cbcols <- c("MSS-hiCIRC" = "#999999",
-            "MSI-H" = "#56B4E9",
-            "MSS" = "#009E73",
-            "MSI-L" = "#E69F00")
-
 # Collate the patients I want to look for (taken from 1_FPKM.R)
 Patient_list <- read.delim("./Output/Patient_list.txt")
 Patient_list <- levels(Patient_list$x)
