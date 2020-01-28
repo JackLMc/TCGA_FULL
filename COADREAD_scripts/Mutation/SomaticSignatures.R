@@ -10,10 +10,6 @@ for (lib in large){
     BiocManager:: install(lib, dependencies = T)
     suppressMessages(library(lib, character.only = T, quietly = T))}}
 
-
-load("./R_Data/Mutation_clean.RData")
-rm("mutation_maf")
-
 my_comparisons <- list(c("MSS-hiCIRC", "MSI-H"),
                        c("MSS-hiCIRC", "MSS"),
                        c("MSI-H", "MSS"))
@@ -21,6 +17,8 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
             "MSI-H" = "#56B4E9",
             "MSS" = "#009E73")
 
+load("./R_Data/Mutation_clean.RData")
+rm("mutation_maf")
 
 # Preprocess
 ##Only take SNPs

@@ -5,6 +5,13 @@ library(tidyverse)
 library(ggpubr)
 library(maftools)
 
+my_comparisons <- list(c("MSS-hiCIRC", "MSI-H"),
+                       c("MSS-hiCIRC", "MSS"),
+                       c("MSI-H", "MSS"))
+cbcols <- c("MSS-hiCIRC" = "#999999",
+            "MSI-H" = "#56B4E9",
+            "MSS" = "#009E73")
+
 load("./R_Data/Mutation_clean.RData")
 
 # Recurrent Mutations ----
