@@ -93,4 +93,9 @@ FPKM3 <- FPKM2 %>%
 rm(list = setdiff(ls(), c("FPKM", "FPKMs", "FPKM1", "FPKM2", "FPKM3")))
 save.image("./R_Data/FPKM_clean.RData")
 
+write.table("./Output/Patient_list.txt", x = as.factor(colnames(FPKM3)), row.names = F)
+
+
+
+
 #### Done ####
