@@ -14,8 +14,6 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
 
 load("./R_Data/Mutation_clean.RData")
 
-
-
 #### Mutated pathways ####
 if (!requireNamespace("BiocManager", quietly = T))
   install.packages("BiocManager")
