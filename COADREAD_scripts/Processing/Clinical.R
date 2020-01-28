@@ -1,3 +1,5 @@
+# A script to clea and process clinical data from the COADREAD project of TCGA
+## Packages
 library(UsefulFunctions)
 library(tidyverse)
 library(ggpubr)
@@ -10,7 +12,7 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
             "MSS" = "#009E73",
             "MSI-L" = "#E69F00")
 
-# Collate the patients I want to look for
+# Collate the patients I want to look for (taken from 1_FPKM.R)
 Patient_list <- read.delim("./Output/Patient_list.txt")
 Patient_list <- levels(Patient_list$x)
 
@@ -44,39 +46,9 @@ full_Data <- rbind(cbio_data, paper_data)
 
 FD <- full_Data[!duplicated(full_Data), ]
 FD1 <- FD[!is.na(FD$MSI_STATUS),] %>% droplevels()
-FD1$MSI_STATUS <- ifelse((FD1$MSI_STATUS == "MSI-H"), "MSI-H", "MSS")
+FD1$MSI_STATUS <- ifelse((FD1$MSI_STATUS == "MSI-H"), "MSI-H", "MSS") ## Calls MSI-L patients MSS
 
 
 write.csv("./Output/Clinical_Data_614.csv", x = FD1, row.names = F)
 
-# Collated survival stats ----
-clin_out_paper<- clin_app[, c("Patient.ID", "Overall.survival..days.", "Survival.event..1.death.")]
-clin_out_cBio <- tcga_pub_clinical[, c("Patient.ID", "OS_MONTHS", "OS_STATUS")]
-
-clin_out_paper$OS_MONTHS <- clin_out_paper$Overall.survival..days./12
-clin_out_paper <- clin_out_paper[!is.na(clin_out_paper$Survival.event..1.death.), ]
-clin_out_paper$died <- ifelse((clin_out_paper$Survival.event..1.death. == 1), T, F)
-
-clin_out_paper <- clin_out_paper[, c("Patient.ID", "OS_MONTHS", "died")]
-
-
-clin_out_cBio <- droplevels(subset(clin_out_cBio, OS_STATUS != "NC"))
-clin_out_cBio$died <- ifelse((clin_out_cBio$OS_STATUS == "LIVING"), F, T)
-clin_out_cBio <- clin_out_cBio[, c("Patient.ID", "OS_MONTHS", "died")]
-
-clin_out <- rbind(clin_out_paper, clin_out_cBio)
-pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
-
-
-clinical_outcome <- merge(pat_sub[, c("Patient.ID", "Subtype")], clin_out, by = "Patient.ID")
-
-# Survival
-library(survival)
-os.surv <- Surv(clinical_outcome$OS_MONTHS, clinical_outcome$died)
-fit1 <- survfit(os.surv ~ Subtype, data = clinical_outcome)
-library(survminer)
-survp <- ggsurvplot(fit1, pval = T, pvalmethod = T, palette = c("#56B4E9",  "#009E73", "#999999"),
-                    risk.table = F)
-
-#### end ####
-
+#### END ####

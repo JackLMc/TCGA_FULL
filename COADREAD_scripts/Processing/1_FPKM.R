@@ -1,8 +1,8 @@
+# A script to clean and process the FPKM files from the COADREAD project on TCGA
+## Packages
 library(UsefulFunctions)
 library(tidyverse)
 library(ggpubr)
-
-# A script to clean and process the FPKM files from the COADREAD project on TCGA
 
 # Looking for the files
 thousand.folders <- list.dirs(path = "./Data/FPKM", full.names = T)
@@ -95,7 +95,4 @@ save.image("./R_Data/FPKM_clean.RData")
 
 write.table("./Output/Patient_list.txt", x = as.factor(colnames(FPKM3)), row.names = F)
 
-
-
-
-#### Done ####
+#### END ####
