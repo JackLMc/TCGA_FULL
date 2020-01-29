@@ -60,7 +60,7 @@ temp_df1 <- merge(converter2[, c("Patient.ID", "File.ID")], temp_df, by = "File.
 library(reshape2)
 dupes <- temp_df1[duplicated(temp_df1[, !'%in%'(colnames(temp_df1), c("FPKM"))]), ]
 
-FPKMs <- dcast(temp_df1, Gene ~ Patient.ID, sum, value.var = "FPKM") # this does nothing :
+FPKMs <- dcast(temp_df1, Gene ~ Patient.ID, sum, value.var = "FPKM") # this does nothing to the data:
 # nlevels(temp_df1$Gene) * nlevels(temp_df1$File.ID) 
 # dim(temp_df1)
 
@@ -80,17 +80,25 @@ genes <- select(Homo.sapiens, keys = geneid, columns = c("SYMBOL", "TXCHROM", "E
 genes <- genes[!duplicated(genes$SYMBOL),]
 
 colnames(FPKMs)[colnames(FPKMs) %in% "Gene"] <- "ENSEMBL"
-FPKM <- merge(genes[, c("ENSEMBL", "SYMBOL")], FPKMs, by = "ENSEMBL") %>% 
+
+FPKM <- merge(genes[, c("ENSEMBL", "SYMBOL")], FPKMsa, by = "ENSEMBL") %>% 
   gather(contains("TCGA"), key = "Patient.ID", value = "FPKM")
 library(reshape2)
 FPKM1 <- dcast(FPKM, SYMBOL ~ Patient.ID, mean, value.var = "FPKM")
-FPKM2 <- FPKM1[!is.na(FPKM1$SYMBOL), ]
-rownames(FPKM2) <- NULL
+FPKM2a <- FPKM1[!is.na(FPKM1$SYMBOL), ]
+rownames(FPKM2a) <- NULL
+FPKM2 <- FPKM2a
+
+FPKM2[!'%in%'(colnames(FPKM2), c("SYMBOL"))] <- log(FPKM2[!'%in%'(colnames(FPKM2), c("SYMBOL"))] + 1)
+
 FPKM3 <- FPKM2 %>%
   column_to_rownames(., var = "SYMBOL") %>%
   as.matrix()
 
-rm(list = setdiff(ls(), c("FPKM", "FPKMs", "FPKM1", "FPKM2", "FPKM3")))
+
+
+
+rm(list = setdiff(ls(), c("FPKM", "FPKMs", "FPKM1", "FPKM2", "FPKM2a", "FPKM3")))
 save.image("./R_Data/FPKM_clean.RData")
 
 write.table("./Output/Patient_list.txt", x = as.factor(colnames(FPKM3)), row.names = F)
