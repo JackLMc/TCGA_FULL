@@ -89,7 +89,7 @@ FPKM2a <- FPKM1[!is.na(FPKM1$SYMBOL), ]
 rownames(FPKM2a) <- NULL
 FPKM2 <- FPKM2a
 
-FPKM2[!'%in%'(colnames(FPKM2), c("SYMBOL"))] <- log(FPKM2[!'%in%'(colnames(FPKM2), c("SYMBOL"))] + 1)
+FPKM2[!'%in%'(colnames(FPKM2), c("SYMBOL"))] <- log2(FPKM2[!'%in%'(colnames(FPKM2), c("SYMBOL"))] + 1)
 
 FPKM3 <- FPKM2 %>%
   column_to_rownames(., var = "SYMBOL") %>%
