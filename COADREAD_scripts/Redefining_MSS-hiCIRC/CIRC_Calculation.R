@@ -3,6 +3,7 @@
 library(UsefulFunctions)
 library(tidyverse)
 library(ggpubr)
+library(reshape2)
 library(GSVA)
 
 # BiocManager::install("devtools")
@@ -113,15 +114,28 @@ my_data <- pca1 %>%
   na.omit()
 rownames(my_data) <- NULL
 
+# Standardise the data
+my_data1 <- column_to_rownames(my_data, var = "Patient.ID")
+my_data2 <- droplevels(subset(my_data1, MSI_STATUS == "MSS"))
+my_data3 <- my_data2[, !('%in%'(colnames(my_data2), c("MSI_STATUS")))]
+
+my_data3 <- log(my_data3 + 1)
+
 ## Determine optimal number of clusters for kmeans
 library(factoextra)
 pdf("./Figures/1_Redefinition/Number_kmean_cluster.pdf", width = 6, height = 6)
-fviz_nbclust(my_data[, !('%in%'(names(my_data), c("Patient.ID", "MSI_STATUS")))], kmeans, method = "gap_stat")
+fviz_nbclust(my_data3, 
+             kmeans, method = c("gap_stat"), nboot = 500, nstart = 25, iter.max = 1000)
 dev.off()
+library(NbClust)
+Nb <- NbClust(data = my_data3, diss = NULL, distance = "euclidean",
+        min.nc = 2, max.nc = 15, method  = "kmeans")
 
 ## Perform Phenograph and kmeans
-a <- cbind(my_data, Phenograph_Clusters = factor(Rphenograph(my_data[, !('%in%'(names(my_data), c("Patient.ID", "MSI_STATUS")))])[[2]]$membership), 
-           kmeans_Clusters = factor(kmeans(my_data[, !('%in%'(names(my_data), c("Patient.ID", "MSI_STATUS")))], centers = 6, iter.max = 1000)$cluster))
+a <- cbind(my_data3, Phenograph_Clusters = factor(Rphenograph(my_data3[, !('%in%'(names(my_data3), c("Patient.ID", "MSI_STATUS")))])[[2]]$membership), 
+           kmeans_Clusters = factor(kmeans(my_data3[, !('%in%'(names(my_data3), c("Patient.ID", "MSI_STATUS")))], centers = 3, iter.max = 1000)$cluster))
+
+
 
 
 ## Choosing visualisation method
@@ -133,38 +147,45 @@ pca1a <- data.frame(a[, names(a) != "MSI_STATUS" &
 # Make the Patient ID the row names
 df <- data.frame(pca1a[, names(pca1a) != "Patient.ID"], row.names = pca1a[, names(pca1a) == "Patient.ID"])
 
+newdata <- log(df + 1)
+
+head(newdata)
+
 ### PCA
-# prin_comp <- prcomp(df, scale. = T)
-# 
+prin_comp <- prcomp(newdata, scale. = F)
+
 ## Plot them 
 # ### Phenograph
-# Pcluster <- a[, "Phenograph_Clusters"]
-# pdf("./Figures/1_Redefinition/PCA/PhenoG_CIRC.pdf", height = 6, width = 6)
-# ggbiplot(prin_comp, obs.scale = 1, var.scale = 1, 
-#          groups = Pcluster, circle = T, var.axes = F) +
-#   theme_bw() +
-#   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-#   theme(legend.direction = "horizontal", legend.position = "top") 
-# dev.off()
-# 
-# ### kmeans
-# Kcluster <- a[, "kmeans_Clusters"]
-# pdf("./Figures/1_Redefinition/PCA/kmeans_CIRC.pdf", height = 6, width = 6)
-# ggbiplot(prin_comp, obs.scale = 1, var.scale = 1, 
-#          groups = Kcluster, circle = T, var.axes = F) +
-#   theme_bw() +
-#   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-#   theme(legend.direction = "horizontal", legend.position = "top") 
-# dev.off()
+Pcluster <- a[, "Phenograph_Clusters"]
+pdf("./Figures/1_Redefinition/PCA/PhenoG_CIRC.pdf", height = 6, width = 6)
+ggbiplot(prin_comp, obs.scale = 1, var.scale = 1,
+         groups = Pcluster, circle = T, var.axes = F) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.direction = "horizontal", legend.position = "top")
+dev.off()
+
+### kmeans
+Kcluster <- a[, "kmeans_Clusters"]
+pdf("./Figures/1_Redefinition/PCA/kmeans_CIRC.pdf", height = 6, width = 6)
+ggbiplot(prin_comp, obs.scale = 1, var.scale = 1,
+         groups = as.factor(Nb$Best.partition), circle = T, var.axes = F) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.direction = "horizontal", legend.position = "top")
+dev.off()
+
+
+View(newdata)
 
 # # RtSNE
-# tsne_out <- Rtsne(as.matrix(df))
-# tsne_dimensions <- as.data.frame(tsne_out$Y)
-# colnames(tsne_dimensions) <- c("Dim1", "Dim2")
-# 
-# ## tSNE plot
-# for_CIRC <- Enrichment_CIRC1[Enrichment_CIRC1$Patient.ID %in% rownames(df), ]
-# CIRC_score <- for_CIRC[, "CIRC_Genes"]
+tsne_out <- Rtsne(as.matrix(my_data3))
+tsne_dimensions <- as.data.frame(tsne_out$Y)
+colnames(tsne_dimensions) <- c("Dim1", "Dim2")
+
+## tSNE plot
+for_CIRC <- Enrichment_CIRC1[Enrichment_CIRC1$Patient.ID %in% rownames(df), ]
+CIRC_score <- for_CIRC[, "CIRC_Genes"]
 # 
 # pdf("./Figures/1_Redefinition/tSNE_CIRC_Score.pdf")
 # ggplot(tsne_dimensions, aes(x = Dim1, y = Dim2, colour = CIRC_score)) +
@@ -184,15 +205,21 @@ df <- data.frame(pca1a[, names(pca1a) != "Patient.ID"], row.names = pca1a[, name
 # ### kmeans
 # cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 # pdf("./Figures/1_Redefinition/tSNE_CIRC_kmeans.pdf")
-# ggplot(tsne_dimensions, aes(x = Dim1, y = Dim2, colour = Kcluster)) +
-#   geom_point(size = 4, alpha = 0.8, pch = 20) +
-#   scale_colour_manual(values = c("1" = "#009E73", "2" = "#56B4E9", "3" = "#E69F00",
-#                                  "4" = "#CC79A7", "5" = "#0072B2", "6" = "#999999",
-#                                  "7" = "#F0E442", "8" = "#D55E00")) +
-#   theme_bw() +
-#   theme(axis.text = element_text(size = 16)) +
-#   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-#   theme(legend.direction = "horizontal", legend.position = "top")
+
+Nb$Best.partition[Nb$Best.partition == 1] %>% length
+
+
+
+
+ggplot(tsne_dimensions, aes(x = Dim1, y = Dim2, colour = as.factor(Nb$Best.partition))) +
+  geom_point(size = 4, alpha = 0.8, pch = 20) +
+  # scale_colour_manual(values = c("1" = "#009E73", "2" = "#56B4E9", "3" = "#E69F00",
+  #                                "4" = "#CC79A7", "5" = "#0072B2", "6" = "#999999",
+  #                                "7" = "#F0E442", "8" = "#D55E00")) +
+  theme_bw() +
+  theme(axis.text = element_text(size = 16)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.direction = "horizontal", legend.position = "top")
 # dev.off()
 
 # pdf("./Figures/1_Redefinition/tSNE_CIRC_PhenoG.pdf")
@@ -208,7 +235,7 @@ df <- data.frame(pca1a[, names(pca1a) != "Patient.ID"], row.names = pca1a[, name
 # dev.off()
 
 ## UMAP
-umap_out <- umap(as.matrix(df))
+umap_out <- umap(as.matrix(my_data3))
 umap_dimensions <- as.data.frame(umap_out$layout)
 colnames(umap_dimensions) <- c("Dim1", "Dim2")
 
@@ -233,22 +260,22 @@ dev.off()
 # # kmeans
 # cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 # pdf("./Figures/1_Redefinition/UMAP_CIRC_kmeans.pdf")
-# ggplot(umap_dimensions, aes(x = Dim1, y = Dim2, colour = Kcluster)) +
-#   geom_point(size = 4, alpha = 0.8, pch = 20) +
-#   scale_colour_manual(values = c("1" = "#009E73", "2" = "#56B4E9", "3" = "#E69F00",
-#                                  "4" = "#CC79A7", "5" = "#0072B2", "6" = "#999999",
-#                                  "7" = "#F0E442", "8" = "#D55E00")) +
-#   theme_bw() +
-#   theme(axis.text = element_text(size = 16)) +
-#   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-#   theme(legend.direction = "horizontal", legend.position = "top")
-# dev.off()
+ggplot(umap_dimensions, aes(x = Dim1, y = Dim2, colour = Kcluster)) +
+  geom_point(size = 4, alpha = 0.8, pch = 20) +
+  # scale_colour_manual(values = c("1" = "#009E73", "2" = "#56B4E9", "3" = "#E69F00",
+  #                                "4" = "#CC79A7", "5" = "#0072B2", "6" = "#999999",
+  #                                "7" = "#F0E442", "8" = "#D55E00")) +
+  theme_bw() +
+  theme(axis.text = element_text(size = 16)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.direction = "horizontal", legend.position = "top")
+dev.off()
 
 ## Phenograph
 pdf("./Figures/1_Redefinition/UMAP_CIRC_Pheno.pdf")
-ggplot(umap_dimensions, aes(x = Dim1, y = Dim2, colour = Pcluster)) +
+ggplot(umap_dimensions, aes(x = Dim1, y = Dim2, colour = as.factor(Nb$Best.partition))) +
   geom_point(size = 4, alpha = 0.8, pch = 20) +
-  scale_colour_manual(values = c("1" = "#009E73", "2" = "#56B4E9", "3" = "#E69F00",
+  scale_colour_manual(values = c("1" = "#009E73", "2" = "#000000", "3" = "#E69F00",
                                  "4" = "#CC79A7", "5" = "#0072B2", "6" = "#999999",
                                  "7" = "#F0E442", "8" = "#D55E00")) +
   theme_bw() +
@@ -274,11 +301,19 @@ j <- a[, c("Patient.ID", "kmeans_Clusters", "Phenograph_Clusters", "MSI_STATUS")
 df1a <- merge(Enrichment_CIRC1, j, by = "Patient.ID")
 df1 <- droplevels(subset(df1a, MSI_STATUS == "MSS"))
 
+clusters <- Nb$Best.partition %>% as.data.frame() %>% rownames_to_column(., var = "Patient.ID")
+
+colnames(clusters) <- c("Patient.ID", "cluster")
+
+df1 <- merge(Enrichment_CIRC1, clusters, by = "Patient.ID")
+df1$cluster <- as.factor(df1$cluster)
+
+
 # Phenograph
 pdf("./Figures/1_Redefinition/CIRC_Pheno_Clusters.pdf", height = 6, width = 6)
-ggplot(df1, aes(x = Phenograph_Clusters, y = CIRC_Genes)) +
+ggplot(df1, aes(x = cluster, y = CIRC_Genes)) +
   geom_boxplot(alpha = 0.5, width = 0.2) + 
-  geom_violin(aes(Phenograph_Clusters, fill = Phenograph_Clusters),
+  geom_violin(aes(cluster, fill = cluster),
               scale = "width", alpha = 0.8) +
   scale_fill_manual(values = c("1" = "#009E73", "2" = "#56B4E9", "3" = "#E69F00",
                                "4" = "#CC79A7", "5" = "#0072B2", "6" = "#999999",
@@ -288,9 +323,9 @@ ggplot(df1, aes(x = Phenograph_Clusters, y = CIRC_Genes)) +
   theme(axis.text = element_text(size = 16)) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
   theme(legend.direction = "horizontal", legend.position = "top") + 
-  stat_compare_means(comparisons = list(c("1", "2"), c("1", "3"), c("1", "4"), c("1", "5"), c("1", "6"), c("1", "7"), c("1", "8"),
-                                        c("2", "3"), c("2", "4"), c("2", "5"), c("2", "6"), c("2", "7"), c("2", "8"),
-                                        c("3", "4"), c("3", "5"), c("3", "6"), c("3", "7"), c("3", "8")
+  stat_compare_means(comparisons = list(c("1", "2")#, #c("1", "3"), c("1", "4"), c("1", "5"), c("1", "6"), c("1", "7"), c("1", "8"),
+                                       # c("2", "3"), c("2", "4"), c("2", "5"), c("2", "6"), c("2", "7"), c("2", "8"),
+                                       # c("3", "4"), c("3", "5"), c("3", "6"), c("3", "7"), c("3", "8")
                                         # c("4", "5"), c("4", "6"), c("4", "7"), c("4", "8"),
                                         # c("5", "6"), c("5", "7"), c("5", "8"),
                                         # c("6", "7"), c("6", "8"),
@@ -298,6 +333,9 @@ ggplot(df1, aes(x = Phenograph_Clusters, y = CIRC_Genes)) +
   ),
   label = "p.signif", method = "wilcox.test")
 dev.off()
+
+
+
 
 # Determine CIRC patients based on CIRC score - Phenograph clustering and tSNE visualisation
 ## Take patients in cluster 1, 2, or 3 with a CIRC score greater than 0
@@ -343,20 +381,22 @@ ggplot(df1a, aes(x = Subtype_cut, y = CIRC_Genes)) +
                      label = "p.signif", method = "wilcox.test")
 
 
-hiCIRC_old <- read.csv("./Output/Patient_Subtypes.csv")
+colnames(df1a)[colnames(df1a) == "Subtype_cut"] <- "Subtype"
+
+# write.csv("./Output/Patient_Subtypes.csv", x = df1a[, c("Patient.ID", "CIRC_Genes", "Subtype")], row.names = F)
+
+
+
+hiCIRC_old <- read.csv("./Output/Old_pat_sub.csv")
+write.csv("./Output/Old_pat_sub.csv", x = hiCIRC_old, row.names = F)
+
 hiCIRC_oldss <- droplevels(subset(hiCIRC_old, Subtype == "MSS-hiCIRC"))
-
-
 df1a[hiCIRC_oldss$Patient.ID %in% hiCIRC$Patient.ID, ]
 
-
 df2 <- merge(df1a, hiCIRC_old[, c("Patient.ID", "Subtype")], by = "Patient.ID")
-View(df2)
 
 mismatches <- droplevels(subset(df2, Subtype_cut != Subtype))
 
-
-View(mismatches)
 
 # Hierarchical clustering
 # library(gplots)
@@ -380,3 +420,4 @@ View(mismatches)
 
 # WRITE OUT THE hiCIRC PATIENT SUBTYPES ----
 # write.csv("./Output/Patient_Subtypes.csv", x = df1a[, c("Patient.ID", "CIRC_Genes", "Subtype")], row.names = F)
+ 
