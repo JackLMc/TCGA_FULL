@@ -26,7 +26,7 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
             "MSS" = "#009E73")
 
 ## Load required RData objects
-load("./R_Data/FPKM_clean.RData")
+load("./R_Data/Counts_clean.RData")
 
 # Set the seed.
 set.seed(123)
@@ -286,11 +286,7 @@ dev.off()
 
 
 # Determine CIRC patients based on CIRC score - Phenograph clustering and tSNE visualisation
-## Take patients in cluster 1, 2, or 3 with a CIRC score greater than 0
-head(df1a)
-head(MSS)
-
-
+## Take patients in cluster 3 or 4 with a CIRC score greater than 0
 hiCIRC <- droplevels(subset(MSS, Phenograph_Clusters == "4" & CIRC_Genes >= 0 | 
                               Phenograph_Clusters == "3" & CIRC_Genes >= 0))
 
@@ -378,9 +374,6 @@ load1$Parameter <- as.factor(load1$Parameter)
 
 # Biggest contributions to a given PC
 load1[order(load1$PC1, decreasing = T)[1:4],]
-droplevels(subset(load1, Parameter == "CD8.10.Class.2.Epithelium"))
-levels(load1$Parameter)
-
 sdev <- prin_comp$sdev
 
 ### Find the correlataions
@@ -394,8 +387,21 @@ comp.cos2 <- apply(var.cos2, 2, sum)
 var.contrib <- t(apply(var.cos2,1, contrib, comp.cos2))
 contrib.var <- as.data.frame(var.contrib)
 
+contrib.var[order(contrib.var$PC1, decreasing = T),]
+
 ## Find the most contributing variable
-contrib.var[order(contrib.var$PC1, decreasing = T)[1:10],]
+head(contrib.var)
+load2 <- column_to_rownames(load1, var = "Parameter") %>% t() %>% as.data.frame()
+
+dplyr:: select(load2, matches("HLA|PC"))
+t_con <- t(contrib.var) %>% as.data.frame()
+
+
+
+dplyr:: select(t_con, matches("HLA|PC")) %>% rowSums()
+
+
+
 
 
 
