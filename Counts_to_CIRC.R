@@ -16,7 +16,7 @@ filelist1 <- sapply(thousand.folders[-1], function(x){
   list.files(x, pattern = "htseq.counts.gz$", full.names = T)})
 filelist = unlist(filelist1)
 
-     # Read in files and combine
+# Read in files and combine
 lists <- lapply(filelist, read.delim, header = F)
 listsDF <- lists
 lists <- listsDF
@@ -69,12 +69,13 @@ Gene_Map <- getBM(attributes = c("ensembl_gene_id", "hgnc_symbol"),
 
 
 rm(list = setdiff(ls(), c("Gene_Map", "Counts_cleaned", "ensembl_DB"))) # Clean environment
-save.image("./R_Data/Counts_clean.RData")
+# save.image("./R_Data/Counts_clean1.RData")
 
-load("./R_Data/Counts_clean.RData")
+load("./R_Data/Counts_clean1.RData")
 library(UsefulFunctions)
 library(tidyverse)
 library(ggpubr)
+library(reshape2)
 
 colnames(Counts_cleaned)[colnames(Counts_cleaned) == "Gene"] <- "ensembl_gene_id"
 
@@ -95,30 +96,50 @@ Counts <- droplevels(subset(Counts, hgnc_symbol != "")) # Remove genes which don
 row.names(Counts) <- NULL
 Counts <- column_to_rownames(Counts, var = "hgnc_symbol")
 
-library_sizes <- colSums(Counts[!'%in%'(colnames(Counts), "hgnc_symbol")]) %>% as.data.frame() %>%
-  rownames_to_column(., var = "Patient.ID")
-colnames(library_sizes) <- c("Patient.ID", "Library_size")
-CPM_scaling <- min(library_sizes$Library_size)/1000000 # Calcualte the cpm scaling value based on the smallest library size
-cpm_scale <- 6.5/CPM_scaling # 6.5 count = minimum I believe (this is from edgeR user manual)
+# library_sizes <- colSums(Counts[!'%in%'(colnames(Counts), "hgnc_symbol")]) %>% as.data.frame() %>%
+#   rownames_to_column(., var = "Patient.ID")
+# colnames(library_sizes) <- c("Patient.ID", "Library_size")
+# CPM_scaling <- min(library_sizes$Library_size)/1000000 # Calcualte the cpm scaling value based on the smallest library size
+# cpm_scale <- 1/CPM_scaling # minimum 1 count
+# 
+# library(edgeR)
+# cpms <- cpm(Counts)
+# 
+# # install.packages("matrixStats")
+# library(matrixStats)
+# Q85 <- rowQuantiles(cpms, probs = c(0.85)) # Packages?
+# # Genes_row <- Counts[rowSums(Counts) != 0, ] %>% rownames()
+# 
+# Genes_to_keep <- Q85[Q85 >= cpm_scale] %>% names() # Only keep the genes which have an average cpm above the scaling value
+# 
+# 
+# keep.exprs <- rowSums(cpms>cpm_scale)>=54
+# 
+# 
+# x <- cpms[keep.exprs,]
 
-cpms <- cpm(Counts)
-average <- rowMeans(cpms)
+Genes_to_keep <- Counts[rowSums(Counts) != 0, ] %>% rownames() # Keep all genes which are expressed in at least 1 patient
 
-Genes_to_keep <- average[average >= cpm_scale] %>% names() # Only keep the genes which have an average cpm above the scaling value
-# This is how it was done in the GSVA paper
 
-Counts_above_6.5 <- Counts[rownames(Counts) %in% Genes_to_keep, ]
+CIRC_IG <- read.csv("./Exploratory_Data/Genesets/CIRC.csv") # Check that the CIRC genes are in this data
+CIRC_IG$SYMBOL <- as.factor(CIRC_IG$SYMBOL)
+CIRC <- CIRC_IG[CIRC_IG$CIRC, ]$SYMBOL %>% droplevels() %>% levels()
 
-rm(list = setdiff(ls(), c("Gene_Map", "Counts_above_6.5", "ensembl_DB"))) # Clean environment
+Counts_above_0 <- Counts[rownames(Counts) %in% Genes_to_keep, ]
+# Counts_above_0[rownames(Counts_above_0) %in% CIRC, ] %>% dim()
+
+rm(list = setdiff(ls(), c("Gene_Map", "Counts_above_0", "ensembl_DB"))) # Clean environment
+save.image("./R_Data/Counts_clean2.RData")
 
 # Normalisation
 # BiocManager::install("cqn")
+load("./R_Data/Counts_clean2.RData")
 library(cqn)
 Gene_Map1 <- getBM(attributes = c("hgnc_symbol", "percentage_gene_gc_content", "start_position", "end_position"),
-                   filters = "hgnc_symbol", values = rownames(Counts_above_6.5), ensembl_DB)
-libraries <- colSums(Counts_above_6.5[!'%in%'(colnames(Counts_above_6.5), "hgnc_symbol")])
+                   filters = "hgnc_symbol", values = rownames(Counts_above_0), ensembl_DB)
+libraries <- colSums(Counts_above_0[!'%in%'(colnames(Counts_above_0), "hgnc_symbol")])
 
-duplicate_info <- Gene_Map1$hgnc_symbol[duplicated(Gene_Map1$hgnc_symbol)] # These genes have multiple numbers for GC or Start or end positions
+duplicate_info <- Gene_Map1$hgnc_symbol[duplicated(Gene_Map1$hgnc_symbol)] %>% unique() # These genes have multiple numbers for GC or Start or end positions
 length(duplicate_info)
 
 Gene_Map1$hgnc_symbol <- as.factor(Gene_Map1$hgnc_symbol)
@@ -141,11 +162,11 @@ Gene_Map2$length <- Gene_Map2$Average_end_position - Gene_Map2$Average_start_pos
 row.names(Gene_Map2) <- NULL
 
 Gene_Map3 <- column_to_rownames(Gene_Map2, var = "hgnc_symbol")
-stopifnot(all(rownames(Counts_above_6.5) == rownames(Gene_Map3)))
-stopifnot(colnames(Counts_above_6.5) == names(libraries))
+stopifnot(all(rownames(Counts_above_0) == rownames(Gene_Map3)))
+stopifnot(colnames(Counts_above_0) == names(libraries))
 
 # Normalisation
-cqn_Counts <- cqn(Counts_above_6.5, lengths = Gene_Map3$length, x = Gene_Map3$Average_percentage_gc_content,
+cqn_Counts <- cqn(Counts_above_0, lengths = Gene_Map3$length, x = Gene_Map3$Average_percentage_gc_content,
                   sizeFactors = libraries, verbose = T)
 
 
@@ -159,9 +180,11 @@ cqnplot(cqn_Counts, n = 2, xlab = "length", lty = 1, ylim = c(1,7))
 ## Normalised expression values
 Counts_cqn <- cqn_Counts$y + cqn_Counts$offset
 
-rm(list = setdiff(ls(), c("Gene_Map3", "Counts_above_6.5", "ensembl_DB", "Counts_cqn", "cqn_Counts", "libraries"))) # Clean environment
+rm(list = setdiff(ls(), c("Gene_Map3", "ensembl_DB", "Counts_cqn", "cqn_Counts", "libraries"))) # Clean environment
 
 
 head(Counts_cqn) # These values are on a log2 scale.
 
 save.image("./R_Data/Counts_clean.RData")
+
+
