@@ -31,7 +31,7 @@ load("./R_Data/Counts_clean.RData")
 # Set the seed.
 set.seed(123)
 
-## CIRC Score calculation (enrichment of the CIRC gene FPKM) ----
+## CIRC Score calculation (enrichment of the CIRC gene CQN) ----
 CIRC_IG <- read.csv("./Exploratory_Data/Genesets/CIRC.csv")
 CIRC_IG$SYMBOL <- as.factor(CIRC_IG$SYMBOL)
 
@@ -41,7 +41,7 @@ CIRC_genes <- droplevels(subset(CIRC_IG, CIRC == T)) %>%
 names(CIRC_genes) <- "CIRC_Genes"
 
 # Calculate Enrichment of CIRC
-Enrichment_CIRC <- gsva(FPKM3, CIRC_genes) 
+Enrichment_CIRC <- gsva(Counts_cqn, CIRC_genes) 
 
 Enrichment_CIRC1 <- Enrichment_CIRC %>% as.data.frame() %>%
   rownames_to_column(., var = "Geneset") %>%
@@ -50,7 +50,7 @@ Enrichment_CIRC1 <- Enrichment_CIRC %>% as.data.frame() %>%
 
 # START CIRC Enrichment --------
 # Read Clinical Stuff in ----
-Clin_614 <- read.csv("./Output/Clinical_Data_614.csv")
+Clin_614 <- read.csv("./Old_Output/Clinical_Data_614.csv") # Now it's in old_output
 CIRC_clin <- merge(Enrichment_CIRC1, Clin_614, by = "Patient.ID")
 
 shapiro.test(Enrichment_CIRC1$CIRC_Genes) # Sig different from normal distributiomn
@@ -98,17 +98,20 @@ colnames(asym) <- c("Method", "P Value")
 
 rbind(Test, asym)
 
-
-
-
 # Clustering ----
 # Partitioning clustering
 ## Remove uneeded stuff
-CIRC_for_Cluster <- droplevels(subset(FPKM2, SYMBOL %in% CIRC_genes$CIRC_Genes))
-pca1 <- CIRC_for_Cluster %>% 
-  gather(contains("TCGA"), key = "Patient.ID", value = "FPKM") %>%
-  spread(key = "SYMBOL", value = "FPKM") %>% 
+
+CIRC_for_Cluster <- Counts_cqn[rownames(Counts_cqn) %in% CIRC_genes$CIRC_Genes, ]
+CIRC_for_Cluster <- rownames_to_column(as.data.frame(CIRC_for_Cluster), var = "SYMBOL")
+head(CIRC_for_Cluster)
+
+pca1 <- CIRC_for_Cluster %>%
+  tidyr:: gather(contains("TCGA"), key = "Patient.ID", value = "CQN")  %>%
+  spread(key = "SYMBOL", value = "CQN") %>% 
   merge(Clin_614, by = "Patient.ID") # Merge with cleaned clinical
+
+head(pca1)[, 1:10]
 
 my_data <- pca1 %>%
   droplevels() %>%
@@ -128,7 +131,7 @@ Nb <- NbClust(data = my_data2[, !('%in%'(colnames(my_data2), c("MSI_STATUS")))],
 
 ## Perform Phenograph and kmeans
 a <- cbind(my_data2, Phenograph_Clusters = factor(Rphenograph(my_data2[, !('%in%'(colnames(my_data2), c("MSI_STATUS")))])[[2]]$membership), 
-           kmeans_Clusters = factor(kmeans(my_data2[, !('%in%'(colnames(my_data2), c("MSI_STATUS")))], centers = 2, iter.max = 1000)$cluster))
+           kmeans_Clusters = factor(kmeans(my_data2[, !('%in%'(colnames(my_data2), c("MSI_STATUS")))], centers = 3, iter.max = 1000)$cluster))
 
 # Clusters with highest expression
 ## Count patients
@@ -136,7 +139,7 @@ library(reshape2)
 dcast(a, MSI_STATUS ~ Phenograph_Clusters, length)
 
 df1a <- rownames_to_column(a, var = "Patient.ID") %>% 
-  dplyr:: select(., c("Patient.ID", "Phenograph_Clusters", "MSI_STATUS")) %>%
+  dplyr:: select(., c("Patient.ID", "kmeans_Clusters", "MSI_STATUS", "Phenograph_Clusters")) %>%
   merge(., Enrichment_CIRC1, by = "Patient.ID")
 
 MSS <- droplevels(subset(df1a, MSI_STATUS == "MSS"))
@@ -169,7 +172,7 @@ dev.off()
 
 
 ## Choosing visualisation method
-# Calculate PCs
+# Calculate PCs 
 pca1a <- data.frame(a[, names(a) != "MSI_STATUS" & 
                         names(a) != "Phenograph_Clusters" & 
                         names(a) != "kmeans_Clusters"])
