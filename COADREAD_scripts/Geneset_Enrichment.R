@@ -12,12 +12,15 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
 
 # source("Clinical.R") # Run to gain the clinical dataframe that's in Output (Clin_614)
 
-load("./R_Data/FPKM_reduced.RData")
+load("./R_Data/FPKM_clean.RData")
 
-
-pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
+pat_sub <- read.csv("./Output/Patient_Subtypes_30_01.csv")
 library(reshape2)
 dcast(pat_sub, Subtype ~., length)
+
+MSS_pats <- droplevels(subset(pat_sub, Subtype != "MSI-H"))
+
+FPKM4 <- FPKM3[, colnames(FPKM3) %in% MSS_pats$Patient.ID]
 
 # GENESET Interrogation ----
 # BiocManager::install("GSVA")
@@ -37,7 +40,7 @@ for(i in levels(Ping$Name)){
   c <- c + 1
 }
 
-Enrichment_Ping <- gsva(FPKM3, Ping_List)
+Enrichment_Ping <- gsva(FPKM4, Ping_List)
 Enrichment_Ping1 <- Enrichment_Ping %>% as.data.frame() %>%
   rownames_to_column(., var = "Geneset") %>%
   gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
@@ -64,7 +67,7 @@ for(i in levels(Enrich1$Parameter)){
     theme(legend.position = "none") +
     stat_cor()
   filen <- paste0(i, ".pdf")
-  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf", path = "./Figures/Gene_Sets/Pearson",
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf", path = "./Figures/Gene_Sets/Pearson/30_01",
                    height = 6, width = 6)
 }
 
@@ -84,7 +87,7 @@ for(i in levels(Genesets$Parameter)){
   geneset_list[[i]] <- genes
 }
 
-Enrichments <- gsva(FPKM3, geneset_list) %>% as.data.frame() %>%
+Enrichments <- gsva(FPKM4, geneset_list) %>% as.data.frame() %>%
   rownames_to_column(., "Geneset") %>% gather(contains("TCGA"), key = "Patient.ID", value = "Enrichment") %>%
   merge(., pat_sub, by = "Patient.ID")
 
@@ -123,11 +126,11 @@ for(i in levels(Enrichments$Geneset)){
     theme(axis.text = element_text(size = 16)) +
     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
     theme(legend.direction = "horizontal", legend.position = "top") + 
-    stat_compare_means(comparisons = my_comparisons,
+    stat_compare_means(comparisons = list(c("MSS", "MSS-hiCIRC")),
                        label = "p.signif", method = "wilcox.test")
   filen <- paste0(i, ".pdf")
   ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
-                   path = "./Figures/Gene_Sets/Enrichment",
+                   path = "./Figures/Gene_Sets/Enrichment/30_01",
                    height = 6, width = 6)}
 
 # GO TERMS
@@ -144,7 +147,7 @@ for(i in levels(ROS$Annotated.Term)){
   c <- c + 1
 }
 
-Enrichment_book <- gsva(FPKM3, ROS_list)
+Enrichment_book <- gsva(FPKM4, ROS_list)
 Enrichment_book1 <- Enrichment_book %>% as.data.frame() %>%
   rownames_to_column(., var = "Geneset") %>%
   gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
@@ -170,11 +173,11 @@ for(i in levels(Enrich1$Parameter)){
     theme(axis.text = element_text(size = 16)) +
     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
     theme(legend.direction = "horizontal", legend.position = "top") + 
-    stat_compare_means(comparisons = my_comparisons,
+    stat_compare_means(comparisons = list(c("MSS", "MSS-hiCIRC")),
                        label = "p.signif", method = "wilcox.test")
   filen <- paste0(i, ".pdf")
   ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
-                   path = "./Figures/Gene_Sets/Enrichment/ROS",
+                   path = "./Figures/Gene_Sets/Enrichment/ROS/30_01",
                    height = 6, width = 6)}
 
 # Fatty acid metabolism
@@ -191,7 +194,7 @@ for(i in levels(FAM$Annotated.Term)){
 }
 
 library(GSVA)
-Enrichment_book <- gsva(FPKM3, FAM_list)
+Enrichment_book <- gsva(FPKM4, FAM_list)
 Enrichment_book1 <- Enrichment_book %>% as.data.frame() %>%
   rownames_to_column(., var = "Geneset") %>%
   gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
@@ -239,7 +242,7 @@ for(i in levels(Phago$Annotated.Term)){
 }
 
 library(GSVA)
-Enrichment_book <- gsva(FPKM3, Phago_list)
+Enrichment_book <- gsva(FPKM4, Phago_list)
 Enrichment_book1 <- Enrichment_book %>% as.data.frame() %>%
   rownames_to_column(., var = "Geneset") %>%
   gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
@@ -304,7 +307,7 @@ a_list[["test"]] <- c("AGER", "APP", "ATF1", "ATF2", "BIRC2", "BIRC3", "BPI", "B
                       "UBE2D1", 	"UBE2D2", 	"UBE2D3", 	"UBE2N", 	"UBE2V1", 	"VRK3")
 
 library(GSVA)
-Enrichment_book <- gsva(FPKM3, a_list)
+Enrichment_book <- gsva(FPKM4, a_list)
 Enrichment_book1 <- Enrichment_book %>% as.data.frame() %>%
   rownames_to_column(., var = "Geneset") %>%
   gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%

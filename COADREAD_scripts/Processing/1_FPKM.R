@@ -74,14 +74,13 @@ FPKMs <- dcast(temp_df1, Gene ~ Patient.ID, sum, value.var = "FPKM") # this does
 library(Homo.sapiens)
 FPKMs$Gene <- gsub("\\..*", "", FPKMs$Gene) #Removes version from Ensembl gene ID
 geneid <- FPKMs$Gene
-
 genes <- select(Homo.sapiens, keys = geneid, columns = c("SYMBOL", "TXCHROM", "ENTREZID"), 
                 keytype = "ENSEMBL")
 genes <- genes[!duplicated(genes$SYMBOL),]
 
 colnames(FPKMs)[colnames(FPKMs) %in% "Gene"] <- "ENSEMBL"
 
-FPKM <- merge(genes[, c("ENSEMBL", "SYMBOL")], FPKMsa, by = "ENSEMBL") %>% 
+FPKM <- merge(genes[, c("ENSEMBL", "SYMBOL")], FPKMs, by = "ENSEMBL") %>% 
   gather(contains("TCGA"), key = "Patient.ID", value = "FPKM")
 library(reshape2)
 FPKM1 <- dcast(FPKM, SYMBOL ~ Patient.ID, mean, value.var = "FPKM")
@@ -89,7 +88,12 @@ FPKM2a <- FPKM1[!is.na(FPKM1$SYMBOL), ]
 rownames(FPKM2a) <- NULL
 FPKM2 <- FPKM2a
 
+BiocManager::install("cqn")
+
 FPKM2[!'%in%'(colnames(FPKM2), c("SYMBOL"))] <- log2(FPKM2[!'%in%'(colnames(FPKM2), c("SYMBOL"))] + 1)
+library(cqn)
+
+?cqn
 
 FPKM3 <- FPKM2 %>%
   column_to_rownames(., var = "SYMBOL") %>%

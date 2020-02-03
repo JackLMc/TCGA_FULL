@@ -29,14 +29,15 @@ names(lists) <- gsub("./Data/Counts/", "", names(lists))
 
 
 ## Patients
-pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
+Patient_list <- read.delim("./Output/Patient_list.txt")
+Patient_list <- levels(Patient_list$x)
 converter <- read.delim("./Data/Important/gdc_sample_sheet_counts.tsv")
 converter$Patient.ID <- gsub("-", ".", converter$Case.ID)
-converter1 <- converter[converter$Patient.ID %in% pat_sub$Patient.ID, ]
+converter1 <- converter[converter$Patient.ID %in% Patient_list, ]
 converter1$File.Name <- gsub(".htseq.counts.gz", "", converter1$File.Name)
 # clin <- read.delim("./Data/Clinical/clinical.tsv")
 # clin$Patient.ID <- gsub("-", ".", clin$submitter_id)
-# clin1 <- clin[clin$Patient.ID %in% pat_sub$Patient.ID, ]
+# clin1 <- clin[clin$Patient.ID %in% Patient_list, ]
 
 lists1 <- lists[names(lists) %in% converter1$File.ID]
 
@@ -51,8 +52,7 @@ multi_join <- function(list_of_loaded_data, join_func, ...){
 combined_df <- multi_join(lists1, full_join)
 
 temp_df <- combined_df %>% gather(key = "File.ID", value = "Count", -Gene)
-converter2 <- droplevels(subset(converter1, Sample.Type != "Solid Tissue Normal" &
-                                  Sample.Type != "Blood Derived Normal"))
+converter2 <- droplevels(subset(converter1, Sample.Type == "Primary Tumor"))
 
 
 
@@ -83,6 +83,9 @@ Counts_cleaned <- droplevels(Counts[!'%in%'(Counts$Gene,
                                             c("__alignment_not_unique", "__no_feature",
                                               "__not_aligned", "__too_low_aQual", "__ambiguous")), ])
 
-save.image(file = "./R_Data/Counts.RData")
+
+rm(list = setdiff(ls(), c("Counts_cleaned")))
+
+save.image(file = "./R_Data/Counts_clean.RData")
 
 

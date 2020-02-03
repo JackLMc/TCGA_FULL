@@ -11,14 +11,14 @@ my_comparisons <- list(c("MSS-hiCIRC", "MSI-H"),
                        c("MSI-H", "MSS"))
 
 # Read in data and process ----
-load("./R_Data/FPKMs.RData")
+load("./R_Data/FPKM_clean.RData")
 
 ## CIRC Geneset
 CIRC_IG <- read.csv("./Exploratory_Data/Genesets/CIRC.csv")
 CIRC_IG$SYMBOL <- as.factor(CIRC_IG$SYMBOL)
 
 ## Clinical
-pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
+pat_sub <- read.csv("./Output/Patient_Subtypes_30_01.csv")
 Clin_614 <- read.csv("./Output/Clinical_Data_614.csv")
 
 ## Label CIRC genes 
@@ -52,12 +52,15 @@ my_data <- my_data[!('%in%'(colnames(my_data), c("CIRC_Genes")))]
 
 ## Straight forward model
 model <- glm(Subtype ~.,family = binomial(link = "logit"), data = my_data, control = list(maxit = 50))
+
+?glm
 summary(model)
 library(MASS)
 stepAIC(model)
-bet_model <- glm(formula = Subtype ~ CD4 + CXCL10 + HLA.DOA + HLA.DPA1 + HLA.DQA1 + 
-                   HLA.DRA + HLA.DRB5 + ICAM1 + LAG3 + PDCD1LG2, family = binomial(link = "logit"), 
-                 data = my_data, control = list(maxit = 50))
+bet_model <- glm(formula = Subtype ~ CCL5 + CD247 + CD4 + CD80 + CTLA4 + GNLY + 
+                   HLA.DMA + HLA.DPA1 + HLA.DPB1 + HLA.DQA2 + HLA.DRA + IRF1 + 
+                   PDCD1LG2, family = binomial(link = "logit"), data = my_data, 
+                 control = list(maxit = 50))
 stepAIC(bet_model)
 summary(bet_model)
 
@@ -83,6 +86,13 @@ anova(model, test = "Chisq")
 # K=number of samples, i.e., leave-one-out CV.
 library(boot)
 cv.glm(my_data, model, K=nrow(my_data))$delta
+
+
+
+
+
+
+
 
 #### Complex model for ROC Curve ####
 # attempt
@@ -149,6 +159,9 @@ for(seed in 1:100){
   c <- c + 1
 }
 
+
+AUC_df
+
 legend("bottomright", legend = c("Average AUC - 0.97"),
        col = c("#E69F00"), lty = 1, cex = 1.2, lwd = 2)
 
@@ -158,10 +171,6 @@ se <- function(x) sqrt(var(x)/length(x))
 se(AUC_df$ROC)
 NAME <- paste0("Seed_", 1:length(coordinate_list))
 names(coordinate_list) <- NAME
-
-
-
-
 
 
 

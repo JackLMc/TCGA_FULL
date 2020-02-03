@@ -1,4 +1,9 @@
 # A script to look at differential gene expression of COADREAD TCGA project
+library(UsefulFunctions)
+library(tidyverse)
+library(ggpubr)
+
+load("./R_Data/Counts_clean.RData")
 
 ##### START EDGER
 library(edgeR)
@@ -10,6 +15,8 @@ x <- DGEList(Counts_cleaned)
 # Get groups
 temp <- x$samples %>% 
   rownames_to_column(., "Patient.ID")
+pat_sub <- read.csv("./Output/Patient_Subtypes_30_01.csv")
+
 colnames(pat_sub)[colnames(pat_sub) == "Subtype"] <- "group"
 x$samples <- merge(temp[, c("Patient.ID", "lib.size", "norm.factors")], pat_sub[, c("Patient.ID", "group")], by = "Patient.ID") %>% column_to_rownames(., var = "Patient.ID")
 group <- x$samples$group

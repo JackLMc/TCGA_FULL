@@ -103,7 +103,7 @@ rbind(Test, asym)
 ## Remove uneeded stuff
 
 CIRC_for_Cluster <- Counts_cqn[rownames(Counts_cqn) %in% CIRC_genes$CIRC_Genes, ]
-CIRC_for_Cluster <- rownames_to_column(as.data.frame(CIRC_for_Cluster), var = "SYMBOL")
+CIRC_for_Cluster <- rownames_to_column(as.data.frame(Counts_cqn), var = "SYMBOL")
 head(CIRC_for_Cluster)
 
 pca1 <- CIRC_for_Cluster %>%
