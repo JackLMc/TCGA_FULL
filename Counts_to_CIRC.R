@@ -49,10 +49,71 @@ temp_df <- combined_df %>% gather(key = "File.ID", value = "Count", -Gene)
 converter2 <- droplevels(subset(converter, Sample.Type == "Primary Tumor"))
 
 temp_df1 <- merge(converter2[, c("Patient.ID", "File.ID")], temp_df, by = "File.ID")
+
+# Check that each patient has one file id
+testing <- data.frame()
+c <- 1
+
+temp_df1$Patient.ID <- as.factor(temp_df1$Patient.ID)
+temp_df1$File.ID <- as.factor(temp_df1$File.ID)
+for(i in levels(temp_df1$Patient.ID)){
+  print(i)
+  work <- droplevels(subset(temp_df1, Patient.ID == i))
+  files <- nlevels(work$File.ID)
+  testing[c, "Patient.ID"] <- i
+  testing[c, "num"] <- files
+  c <- c + 1
+}
+
+multiple_seq <- droplevels(subset(testing, num != 1))$Patient.ID
+
+Countsprepare <- droplevels(temp_df1[!'%in%'(temp_df1$Gene, 
+                                            c("__alignment_not_unique", "__no_feature",
+                                              "__not_aligned", "__too_low_aQual", "__ambiguous")), ])
+
+multiples <- Countsprepare[Countsprepare$Patient.ID %in% multiple_seq, ] %>% droplevels()
+multiples$File.ID <- as.factor(multiples$File.ID)
+multiples$Patient.ID <- as.factor(multiples$Patient.ID)
+
+decide <- data.frame()
+c <- 1
+for(i in levels(multiples$File.ID)){
+  work <- droplevels(subset(multiples, File.ID == i))
+  
+  library_size <- sum(work$Count)
+  
+  decide[c, "File.ID"] <- i
+  decide[c, "Patient.ID"] <- levels(work$Patient.ID)
+  decide[c, "Library"] <- library_size
+  c <- c + 1
+}
+
+decide <- droplevels(decide)
+
+remove_these <- data.frame()
+decide$Patient.ID <- as.factor(decide$Patient.ID)
+decide$File.ID <- as.factor(decide$File.ID)
+
+# levels(decide$Patient.ID)
+# levels(decide$File.ID)
+
+c <- 1
+for(i in levels(decide$Patient.ID)){
+  print(i)
+  work <- droplevels(subset(decide, Patient.ID == "TCGA.A6.3810"))
+  samp_to_remove <- with(work, File.ID[Library == min(Library)])
+  tjis <- as.character(samp_to_remove)
+  remove_these[c, "File.ID"] <- tjis
+  remove_these[c, "Patient.ID"] <- i
+  c <- c + 1
+}
+
+temp_df2 <- Countsprepare[!'%in%'(Countsprepare$Patient.ID, remove_these), ] %>% 
+  droplevels()
+
 library(reshape2)
 
-Counts <- dcast(temp_df1, Gene ~ Patient.ID, sum, value.var = "Count") # This does nothing, but get in correct format.
-
+Counts <- dcast(temp_df2, Gene ~ Patient.ID, sum, value.var = "Count") # This does nothing, but get it in the correct format
 Counts_cleaned <- droplevels(Counts[!'%in%'(Counts$Gene, 
                                             c("__alignment_not_unique", "__no_feature",
                                               "__not_aligned", "__too_low_aQual", "__ambiguous")), ])
@@ -82,7 +143,8 @@ colnames(Counts_cleaned)[colnames(Counts_cleaned) == "Gene"] <- "ensembl_gene_id
 Counts_merged <- merge(Counts_cleaned, Gene_Map, by = "ensembl_gene_id")  
 Counts_SYMBOLS <- Counts_merged[, !'%in%'(colnames(Counts_merged), "ensembl_gene_id")]
 
-Counts_long <- Counts_SYMBOLS %>% gather(-hgnc_symbol, value = "Count", key = "Patient.ID")
+Counts_long <- Counts_SYMBOLS %>% 
+  gather(-hgnc_symbol, value = "Count", key = "Patient.ID")
 
 # The below function adds the counts together to account for the many:1 mapping of ensembl_gene_id to hgnc_symbols
 # hgnc_symbols are much easier to work with for my analysis - Neeraj determined all of CIRC in this
@@ -100,23 +162,22 @@ Counts <- column_to_rownames(Counts, var = "hgnc_symbol")
 #   rownames_to_column(., var = "Patient.ID")
 # colnames(library_sizes) <- c("Patient.ID", "Library_size")
 # CPM_scaling <- min(library_sizes$Library_size)/1000000 # Calcualte the cpm scaling value based on the smallest library size
-# cpm_scale <- 1/CPM_scaling # minimum 1 count
+# cpm_scale <- 2/CPM_scaling # minimum 1 count
 # 
 # library(edgeR)
 # cpms <- cpm(Counts)
-# 
-# # install.packages("matrixStats")
-# library(matrixStats)
-# Q85 <- rowQuantiles(cpms, probs = c(0.85)) # Packages?
-# # Genes_row <- Counts[rowSums(Counts) != 0, ] %>% rownames()
-# 
-# Genes_to_keep <- Q85[Q85 >= cpm_scale] %>% names() # Only keep the genes which have an average cpm above the scaling value
-# 
 # 
 # keep.exprs <- rowSums(cpms>cpm_scale)>=54
 # 
 # 
 # x <- cpms[keep.exprs,]
+# dim(x)
+# CIRC_IG <- read.csv("./Exploratory_Data/Genesets/CIRC.csv")
+# CIRC_IG$SYMBOL <- as.factor(CIRC_IG$SYMBOL)
+# 
+# CIRC <- CIRC_IG[CIRC_IG$CIRC,]$SYMBOL
+# 
+# x[rownames(x) %in% CIRC, ] %>% dim()
 
 Genes_to_keep <- Counts[rowSums(Counts) != 0, ] %>% rownames() # Keep all genes which are expressed in at least 1 patient
 
