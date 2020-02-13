@@ -89,5 +89,5 @@ for(i in levels(mut_clin$Consequence)){
     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
     stat_compare_means(comparisons = my_comparisons, label = "p.signif")
   filen <- paste0(i, ".pdf")
-  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf", path = "./Figures/Mutation/Numbers/Test",
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf", path = "./Figures/Mutation/Numbers/Consequence",
                    height = 6, width = 6)}
