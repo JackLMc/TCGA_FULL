@@ -10,17 +10,19 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
             "MSS" = "#009E73",
             "MSI-L" = "#E69F00")
 
-# source("Clinical.R") # Run to gain the clinical dataframe that's in Output (Clin_614)
+# source("Clinical.R") # Run to gain the clinical dataframe that's in Output (Clin_540)
 
-load("./R_Data/FPKM_clean.RData")
+load("./R_Data/Counts_clean.RData")
 
-pat_sub <- read.csv("./Output/Patient_Subtypes_30_01.csv")
+pat_sub <- read.csv("./Output/Patient_Subtypes_13_02.csv")
 library(reshape2)
 dcast(pat_sub, Subtype ~., length)
 
-MSS_pats <- droplevels(subset(pat_sub, Subtype != "MSI-H"))
+Ccqn <- Counts_cqn
 
-FPKM4 <- FPKM3[, colnames(FPKM3) %in% MSS_pats$Patient.ID]
+# MSS_pats <- droplevels(subset(pat_sub, Subtype != "MSI-H"))
+# Ccqn <- Counts_cqn[, colnames(Counts_cqn) %in% MSS_pats$Patient.ID]
+
 
 # GENESET Interrogation ----
 # BiocManager::install("GSVA")
@@ -40,7 +42,7 @@ for(i in levels(Ping$Name)){
   c <- c + 1
 }
 
-Enrichment_Ping <- gsva(FPKM4, Ping_List)
+Enrichment_Ping <- gsva(Ccqn, Ping_List)
 Enrichment_Ping1 <- Enrichment_Ping %>% as.data.frame() %>%
   rownames_to_column(., var = "Geneset") %>%
   gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
@@ -67,7 +69,7 @@ for(i in levels(Enrich1$Parameter)){
     theme(legend.position = "none") +
     stat_cor()
   filen <- paste0(i, ".pdf")
-  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf", path = "./Figures/Gene_Sets/Pearson/30_01",
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf", path = "./Figures/Gene_Sets/Pearson",
                    height = 6, width = 6)
 }
 
@@ -87,16 +89,17 @@ for(i in levels(Genesets$Parameter)){
   geneset_list[[i]] <- genes
 }
 
-Enrichments <- gsva(FPKM4, geneset_list) %>% as.data.frame() %>%
+Enrichments <- gsva(Ccqn, geneset_list) %>% as.data.frame() %>%
   rownames_to_column(., "Geneset") %>% gather(contains("TCGA"), key = "Patient.ID", value = "Enrichment") %>%
   merge(., pat_sub, by = "Patient.ID")
 
 Enrichments$Geneset <- as.factor(Enrichments$Geneset)
 
 ## Pearson
-for(i in levels(Enrichments$Geneset)){
+No_MSI <- droplevels(subset(Enrichments, Subtype != "MSI-H")) # Remove these patients from pearson correlations
+for(i in levels(No_MSI$Geneset)){
   print(i)
-  work <- droplevels(subset(Enrichments, Geneset == i))
+  work <- droplevels(subset(No_MSI, Geneset == i))
   temp_plot <- ggplot(work, aes(y = Enrichment, x = CIRC_Genes))+
     geom_point(alpha = 0.8, size = 4, colour = "slategray") +
     labs(x = "CIRC enrichment score", y = paste(i, "enrichment score")) +
@@ -126,11 +129,11 @@ for(i in levels(Enrichments$Geneset)){
     theme(axis.text = element_text(size = 16)) +
     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
     theme(legend.direction = "horizontal", legend.position = "top") + 
-    stat_compare_means(comparisons = list(c("MSS", "MSS-hiCIRC")),
+    stat_compare_means(comparisons = my_comparisons,
                        label = "p.signif", method = "wilcox.test")
   filen <- paste0(i, ".pdf")
   ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
-                   path = "./Figures/Gene_Sets/Enrichment/30_01",
+                   path = "./Figures/Gene_Sets/Enrichment",
                    height = 6, width = 6)}
 
 # GO TERMS
@@ -147,7 +150,7 @@ for(i in levels(ROS$Annotated.Term)){
   c <- c + 1
 }
 
-Enrichment_book <- gsva(FPKM4, ROS_list)
+Enrichment_book <- gsva(Ccqn, ROS_list)
 Enrichment_book1 <- Enrichment_book %>% as.data.frame() %>%
   rownames_to_column(., var = "Geneset") %>%
   gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
@@ -173,11 +176,11 @@ for(i in levels(Enrich1$Parameter)){
     theme(axis.text = element_text(size = 16)) +
     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
     theme(legend.direction = "horizontal", legend.position = "top") + 
-    stat_compare_means(comparisons = list(c("MSS", "MSS-hiCIRC")),
+    stat_compare_means(comparisons = my_comparisons,
                        label = "p.signif", method = "wilcox.test")
   filen <- paste0(i, ".pdf")
   ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
-                   path = "./Figures/Gene_Sets/Enrichment/ROS/30_01",
+                   path = "./Figures/Gene_Sets/Enrichment/ROS",
                    height = 6, width = 6)}
 
 # Fatty acid metabolism
@@ -194,7 +197,7 @@ for(i in levels(FAM$Annotated.Term)){
 }
 
 library(GSVA)
-Enrichment_book <- gsva(FPKM4, FAM_list)
+Enrichment_book <- gsva(Ccqn, FAM_list)
 Enrichment_book1 <- Enrichment_book %>% as.data.frame() %>%
   rownames_to_column(., var = "Geneset") %>%
   gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
@@ -228,57 +231,7 @@ for(i in levels(Enrich1$Parameter)){
                    height = 6, width = 6)}
 
 
-# Phagocytosis
-Phago  <- read.csv("./Exploratory_Data/Genesets/GO_term_summary_20190603_065405.csv")
-
-Phago_list <- list()
-c <- 1
-for(i in levels(Phago$Annotated.Term)){
-  print(i)
-  work <- droplevels(subset(Phago, Annotated.Term == i))
-  Genes <- toupper(levels(work$Symbol))
-  Phago_list[[i]] <- Genes
-  c <- c + 1
-}
-
-library(GSVA)
-Enrichment_book <- gsva(FPKM4, Phago_list)
-Enrichment_book1 <- Enrichment_book %>% as.data.frame() %>%
-  rownames_to_column(., var = "Geneset") %>%
-  gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
-  spread(., key = "Geneset", value = "Enrich")
-
-
-Enrichment_book1$Patient.ID <- as.factor(Enrichment_book1$Patient.ID)
-Enrich <- merge(pat_sub, Enrichment_book1, by = "Patient.ID")
-
-Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -CIRC_Genes, -Patient.ID, -Subtype)
-Enrich1$Parameter <- as.factor(Enrich1$Parameter)
-
-for(i in levels(Enrich1$Parameter)){
-  print(i)
-  work <- droplevels(subset(Enrich1, Parameter == i))
-  temp_plot <- ggplot(work, aes(x = Subtype, y = Enrichment)) +
-    geom_boxplot(alpha = 0.5, width = 0.2) + 
-    geom_violin(aes(Subtype, fill = Subtype),
-                scale = "width", alpha = 0.8) +
-    scale_fill_manual(values = cbcols) +
-    labs(x = "Subtype", y = paste(i, "enrichment score")) +
-    theme_bw() +
-    theme(axis.text = element_text(size = 16)) +
-    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-    theme(legend.direction = "horizontal", legend.position = "top") + 
-    stat_compare_means(comparisons = my_comparisons,
-                       label = "p.signif", method = "wilcox.test")
-  filen <- paste0(i, ".pdf")
-  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
-                   path = "./Figures/Gene_Sets/Enrichment/Phago",
-                   height = 6, width = 6)}
-
-
-
 ## Bespoke
-FPKM2$SYMBOL[grepl("S100A", FPKM2$SYMBOL)]
 book_list <- list()
 book_list[["SAAs"]] <- c("TLR4", "LY96"#,
                          #"TIRAP"#, "MYD88"
@@ -307,7 +260,7 @@ a_list[["test"]] <- c("AGER", "APP", "ATF1", "ATF2", "BIRC2", "BIRC3", "BPI", "B
                       "UBE2D1", 	"UBE2D2", 	"UBE2D3", 	"UBE2N", 	"UBE2V1", 	"VRK3")
 
 library(GSVA)
-Enrichment_book <- gsva(FPKM4, a_list)
+Enrichment_book <- gsva(Ccqn, book_list)
 Enrichment_book1 <- Enrichment_book %>% as.data.frame() %>%
   rownames_to_column(., var = "Geneset") %>%
   gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
@@ -340,7 +293,15 @@ dev.off()
 
 
 # INDIVIDUAL GENES INTERROGATION ----
-MA <- merge(FPKM, pat_sub[, c("Patient.ID", "Subtype", "CIRC_Genes")], by = "Patient.ID")
+TCcqn <- Ccqn %>% as.data.frame() %>%
+  rownames_to_column(., var = "Gene") %>%
+  gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
+  spread(., key = "Gene", value = "Enrich") %>%
+  merge(., pat_sub, by = "Patient.ID")
+
+head(TCcqn)[, 1:10]
+LongCQN <- TCcqn %>% gather(-Patient.ID, -Subtype, key = "Gene", value = "CQN")
+
 genes_of_interest <- c("IL6", "IL1B", "IL23A", "TGFB1",
                        "CCL2", "CCL5", "CXCL10", "CCL20",
                        "CCR6", "TLR4", "TLR2", "CIITA",
@@ -348,44 +309,45 @@ genes_of_interest <- c("IL6", "IL1B", "IL23A", "TGFB1",
                        "CDC42", "FCAR", "IGHA1", "EHMT2", "OX40",
                        "OX40L", "CD1D")
 
-GOI <- droplevels(MA[MA$SYMBOL %in% genes_of_interest, ]) %>%
-  .[, c("Patient.ID", "SYMBOL", "FPKM", "Subtype", "CIRC_Genes")]
-GOI$SYMBOL <- as.factor(GOI$SYMBOL)
+
+
+GOI <- droplevels(LongCQN[LongCQN$Gene %in% genes_of_interest, ]) %>%
+  .[, c("Patient.ID", "Gene", "Subtype", "CQN")]
+GOI$Gene <- as.factor(GOI$Gene)
 
 ## Remove for Pearson correlation
-GOI1 <- droplevels(subset(GOI, Subtype != "MSI-H"))
-for(i in levels(GOI1$SYMBOL)){
-  print(i)
-  work <- droplevels(subset(GOI1, SYMBOL == i))
-  work$Logged <- log2(work$FPKM + 1)
-  temp_plot <- ggplot(work, aes(y = Logged, x = CIRC_Genes))+
-    geom_point(alpha = 0.8, size = 4, colour = "slategray") +
-    labs(x = "CIRC_Genes Enrichment", y = paste0("Log2(", i, " + 1)")) +
-    theme_bw() +
-    # geom_text(aes(x = -0.3, y = .75, label = lm_eqn(lm(CIRC_Genes ~ Enrichment, work))), parse = T) +
-    # scale_color_manual(values = cbcols) +
-    geom_smooth(method = "lm", se = F) +
-    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-    theme(legend.position = "none") +
-    stat_cor()
-  filen <- paste0(i, ".pdf")
-  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
-                   path = "./Figures/Genes_of_interest/Correlations",
-                   height = 6, width = 6)
-}
+# GOI1 <- droplevels(subset(GOI, Subtype != "MSI-H"))
+# for(i in levels(GOI1$SYMBOL)){
+#   print(i)
+#   work <- droplevels(subset(GOI1, SYMBOL == i))
+#   work$Logged <- log2(work$FPKM + 1)
+#   temp_plot <- ggplot(work, aes(y = Logged, x = CIRC_Genes))+
+#     geom_point(alpha = 0.8, size = 4, colour = "slategray") +
+#     labs(x = "CIRC_Genes Enrichment", y = paste0("Log2(", i, " + 1)")) +
+#     theme_bw() +
+#     # geom_text(aes(x = -0.3, y = .75, label = lm_eqn(lm(CIRC_Genes ~ Enrichment, work))), parse = T) +
+#     # scale_color_manual(values = cbcols) +
+#     geom_smooth(method = "lm", se = F) +
+#     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+#     theme(legend.position = "none") +
+#     stat_cor()
+#   filen <- paste0(i, ".pdf")
+#   ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
+#                    path = "./Figures/Genes_of_interest/Correlations",
+#                    height = 6, width = 6)
+# }
 
 ## Compare across Subtypes
 for(i in 1:length(genes_of_interest)){
   gene <- genes_of_interest[i]
   print(gene)
-  GOI <- droplevels(subset(MA, SYMBOL == gene))
-  GOI$Rank <- rank(GOI$FPKM)
-  temp_plot <- ggplot(GOI, aes(x = Subtype, y = Rank)) +
+  GOI <- droplevels(subset(LongCQN, Gene == gene))
+  temp_plot <- ggplot(GOI, aes(x = Subtype, y = CQN)) +
     geom_boxplot(alpha = 0.5, width = 0.2) + 
     geom_violin(aes(Subtype, fill = Subtype),
                 scale = "width", alpha = 0.8) +
     scale_fill_manual(values = cbcols) +
-    labs(x = "MSI Status", y = paste("Rank transformed", gene, "FPKM", sep = " ")) +
+    labs(x = "MSI Status", y = paste(gene, "CQN Count", sep = " ")) +
     theme_bw() +
     theme(axis.text = element_text(size = 16)) +
     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
