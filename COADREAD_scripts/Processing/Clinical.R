@@ -42,6 +42,6 @@ FD1$MSI_STATUS <- ifelse((FD1$MSI_STATUS == "MSI-H"), "MSI-H", "MSS") ## Calls M
 
 count(FD1, vars = c("MSI_STATUS"))
 
-write.csv("./Output/Clinical_Data_543.csv", x = FD1, row.names = F)
+write.csv("./Output/Clinical_Data_540.csv", x = FD1, row.names = F)
 
 #### END ####
