@@ -13,6 +13,8 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
 
 load("./R_Data/Mutation_clean.RData")
 
+pat_sub <- read.csv("Output/Patient_Subtypes_13_02.csv")[, c("Patient.ID", "Subtype")]
+
 # Number of mutations between groups ----
 # Count up
 ## Including silent

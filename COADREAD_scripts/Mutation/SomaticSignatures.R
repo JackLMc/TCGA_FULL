@@ -20,6 +20,8 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
 load("./R_Data/Mutation_clean.RData")
 rm("mutation_maf")
 
+pat_sub <- read.csv("Output/Patient_Subtypes_13_02.csv")[, c("Patient.ID", "Subtype")]
+
 # Preprocess
 ##Only take SNPs
 somsig <- droplevels(subset(tcga_mut, Variant_Type == "SNP"))
@@ -81,7 +83,7 @@ sca_mm2 <- sca_mm1[ , apply(sca_mm1, 2, function(x) !any(is.na(x)))]
 sca_mm3 <- as.matrix(sca_mm2)
 
 ## Use to estimate the number of signatures 
-set.seed(100)
+set.seed(123)
 n_sigs = 2:7
 
 gof_nmf <- assessNumberSignatures(sca_mm3, n_sigs, nReplicates = 10)

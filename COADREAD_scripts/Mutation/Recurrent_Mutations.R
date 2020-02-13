@@ -17,7 +17,7 @@ load("./R_Data/Mutation_clean.RData")
 # Recurrent Mutations ----
 devtools::install_github(repo = "PoisonAlien/TCGAmutations")
 
-pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
+pat_sub <- read.csv("Output/Patient_Subtypes_13_02.csv")
 pat_sub$Patient.ID <- gsub("\\.", "-", pat_sub$Patient.ID) %>% as.factor()
 
 pat_sub1 <- droplevels(subset(pat_sub, Subtype == "MSS-hiCIRC"))
@@ -38,7 +38,7 @@ mutation_maf3 <- subsetMaf(mutation_maf, tsb = patients3, isTCGA = T, mafObj = T
 
 dev.off()
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-set.seed(1)
+set.seed(123)
 pdf("./Figures/Mutation/Recurrent/hiCIRC_muts.pdf")
 geneCloud(mutation_maf1, minMut = no_pats1, random.order = F)
 dev.off()
@@ -51,8 +51,8 @@ pdf("./Figures/Mutation/Recurrent/MSI_muts.pdf")
 geneCloud(mutation_maf3, minMut = no_pats3, random.order = F)
 dev.off()
 
-save.image("./R_Data/Mutations.RData")
-load("./R_Data/Mutations.RData")
+# save.image("./R_Data/Mutations.RData")
+# load("./R_Data/Mutations.RData")
 
 ## Pick from geneCloud plot - clustered mutations?
 lollipopPlot(mutation_maf1, gene = "APC")
