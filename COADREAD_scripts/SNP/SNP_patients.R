@@ -150,7 +150,7 @@ write.csv(TB, file = "./Output/file_id_pats_SNP.csv", row.names = F)
 
 clusters <- TB[, c("file_id", "Subtype")]
 
-write.table("./Output/clusters.txt", x = clusters, row.names = F)
+write.table("./Output/clusters_13_02.txt", x = clusters, row.names = F)
 
 
 #### END ####
