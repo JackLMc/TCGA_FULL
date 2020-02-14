@@ -31,7 +31,7 @@ clin_out_cBio$died <- ifelse((clin_out_cBio$OS_STATUS == "LIVING"), F, T)
 clin_out_cBio <- clin_out_cBio[, c("Patient.ID", "OS_MONTHS", "died")]
 
 clin_out <- rbind(clin_out_paper, clin_out_cBio)
-pat_sub <- read.csv("./Output/Patient_Subtypes.csv")
+pat_sub <- read.csv("./Output/Patient_Subtypes_13_02.csv")
 
 
 clinical_outcome <- merge(pat_sub[, c("Patient.ID", "Subtype")], clin_out, by = "Patient.ID")
@@ -41,7 +41,10 @@ library(survival)
 os.surv <- Surv(clinical_outcome$OS_MONTHS, clinical_outcome$died)
 fit1 <- survfit(os.surv ~ Subtype, data = clinical_outcome)
 library(survminer)
-survp <- ggsurvplot(fit1, pval = T, pvalmethod = T, palette = c("#56B4E9",  "#009E73", "#999999"),
+pdf("./Figures/Clinical/Survival.pdf")
+ggsurvplot(fit1, pval = T, pvalmethod = T, palette = c("#56B4E9",  "#009E73", "#999999"),
                     risk.table = F)
+dev.off()
+
 
 #### END ####

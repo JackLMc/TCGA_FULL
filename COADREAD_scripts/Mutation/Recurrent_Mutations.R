@@ -24,7 +24,7 @@ pat_sub1 <- droplevels(subset(pat_sub, Subtype == "MSS-hiCIRC"))
 pat_sub2 <- droplevels(subset(pat_sub, Subtype == "MSS"))
 pat_sub3 <- droplevels(subset(pat_sub, Subtype == "MSI-H"))
 
-no_pats1 <- round(0.5 * nlevels(pat_sub1$Patient.ID))
+no_pats1 <- round(0.5 * nlevels(pat_sub1$Patient.ID)) # Apply this to the gene plot later - only take mutations present in half of patients
 no_pats2 <- round(0.5 * nlevels(pat_sub2$Patient.ID))
 no_pats3 <- round(0.5 * nlevels(pat_sub3$Patient.ID))
 

@@ -18,7 +18,7 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
             "MSS" = "#009E73")
 
 load("./R_Data/Mutation_clean.RData")
-rm("mutation_maf")
+rm("mutation_maf") # Don't need this for this analysis, reduce burden by removing
 
 pat_sub <- read.csv("Output/Patient_Subtypes_13_02.csv")[, c("Patient.ID", "Subtype")]
 
@@ -68,7 +68,11 @@ sort(table(sca_vr$subtype), decreasing = T)
 sca_motifs <- mutationContext(sca_vr, BSgenome.Hsapiens.1000genomes.hs37d5)
 
 # Somatic spectrum across patient types
-plotMutationSpectrum(sca_motifs, "subtype")
+pdf("./Figures/Mutation_Spectrum/Somatic_spec_Subtype.pdf", width = 6, height = 6)
+plotMutationSpectrum(sca_motifs, "subtype") + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  scale_fill_manual(values = cbcols)
+dev.off()
 
 # Construct matrix M {motifs × studies}. Normalize to return frequency 
 sca_mm <- motifMatrix(sca_motifs, group = "PatID", normalize = T) # Look for PatID
@@ -87,9 +91,10 @@ set.seed(123)
 n_sigs = 2:7
 
 gof_nmf <- assessNumberSignatures(sca_mm3, n_sigs, nReplicates = 10)
-# pdf("./Figures/Mutation_Spectrum/NMF_Sigs.pdf", width = 6, height = 6)
+
+pdf("./Figures/Mutation_Spectrum/NMF_Sigs.pdf", width = 6, height = 6)
 plotNumberSignatures(gof_nmf)
-# dev.off()
+dev.off()
 
 # gof_pca <- assessNumberSignatures(sca_mm3, n_sigs, pcaDecomposition) # these are pants
 # plotNumberSignatures(gof_pca)
@@ -111,7 +116,8 @@ sum(as.numeric(w_norm[,1]))
 # Plot the NMF
 # plotSignatureMap(sigs_nmf) + ggtitle("Somatic Signatures: NMF - Heatmap")
 pdf("./Figures/Mutation_Spectrum/NMF_Sigs_Contrib.pdf", width = 8, height = 8)
-plotSignatures(sigs_nmf)
+plotSignatures(sigs_nmf) + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 dev.off()
 
 # plotObservedSpectrum(sigs_nmf) # too many colours
