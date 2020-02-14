@@ -157,7 +157,7 @@ ggplot(df1a, aes(x = Phenograph_Clusters, y = CIRC_Genes)) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
   theme(legend.direction = "horizontal", legend.position = "top") + 
   stat_compare_means(comparisons = list(c("1", "2"), c("1", "3"), c("2", "3")),
-  label = "p.signif", method = "wilcox.test")
+                     label = "p.signif", method = "wilcox.test")
 dev.off()
 
 
@@ -340,9 +340,3 @@ t_con <- t(contrib.var) %>% as.data.frame()
 
 
 dplyr:: select(t_con, matches("HLA|PC")) %>% rowSums()
-
-
-
-
-
-
