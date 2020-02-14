@@ -79,6 +79,9 @@ normals <- droplevels(subset(META, sample_type == "Blood Derived Normal"))
 hiCIRC <- read.csv("./Output/Patient_Subtypes_13_02.csv")
 
 files <- merge(normals, hiCIRC, by = "Patient.ID") %>% droplevels()
+
+dim(files)
+
 CIRC <- droplevels(subset(files, Subtype == "MSS-hiCIRC"))
 MSS <- droplevels(subset(files, Subtype == "MSS"))
 MSI <- droplevels(subset(files, Subtype == "MSI-H"))
@@ -149,8 +152,10 @@ TB <- merge(this_bit, hiCIRC, by = "Patient.ID")[, c("Patient.ID", "file_id", "S
 write.csv(TB, file = "./Output/file_id_pats_SNP.csv", row.names = F)
 
 clusters <- TB[, c("file_id", "Subtype")]
+clusters$file_id <- gsub("\\.", "-", clusters$file_id)
 
-write.table("./Output/clusters_13_02.txt", x = clusters, row.names = F)
+write.table("./Output/clusters_13_02.txt", x = clusters, row.names = F, quote = F, sep = "\t")
 
+save.image("./R_Data/SNP_patient_find.RData")
 
 #### END ####
