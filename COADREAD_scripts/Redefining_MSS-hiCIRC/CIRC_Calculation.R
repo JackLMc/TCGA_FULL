@@ -260,6 +260,7 @@ POLE <- read.csv("Output/POLE_mutants.csv")
 Patient_pool$Subtype <- ifelse((Patient_pool$Patient.ID %in% POLE$.), as.character(Patient_pool$MSI_STATUS), as.character(Patient_pool$Subtype))
 
 droplevels(subset(Patient_pool, Subtype == "MSS-hiCIRC")) %>% dim
+count(Patient_pool, vars = c("Subtype"))
 
 
 pdf("./Figures/1_Redefinition/CIRC_Score_hiCIRC.pdf")
