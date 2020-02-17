@@ -3,39 +3,38 @@ library(UsefulFunctions)
 library(tidyverse)
 library(ggpubr)
 
+my_comparisons <- list(c("MSS-hiCIRC", "MSI-H"),
+                       c("MSS-hiCIRC", "MSS"),
+                       c("MSI-H", "MSS"))
+cbcols <- c("MSS-hiCIRC" = "#999999",
+            "MSI-H" = "#56B4E9",
+            "MSS" = "#009E73")
+
 load("./R_Data/Counts_clean.RData")
+# rm(list = setdiff(ls(), c("cqn_Counts"))) # Clean environment
 
 ##### START EDGER
 library(edgeR)
+
 # Replenish "x"
-row.names(Counts_cleaned) <- NULL
-Counts_cleaned <- Counts_cleaned %>% column_to_rownames(., var = "Gene")
-x <- DGEList(Counts_cleaned)
+Counts_clean <- cqn_Counts$counts
+x <- DGEList(Counts_clean)
 
 # Get groups
 temp <- x$samples %>% 
   rownames_to_column(., "Patient.ID")
-pat_sub <- read.csv("./Output/Patient_Subtypes_30_01.csv")
+pat_sub <- read.csv("./Output/Patient_Subtypes_13_02.csv")
 
 colnames(pat_sub)[colnames(pat_sub) == "Subtype"] <- "group"
-x$samples <- merge(temp[, c("Patient.ID", "lib.size", "norm.factors")], pat_sub[, c("Patient.ID", "group")], by = "Patient.ID") %>% column_to_rownames(., var = "Patient.ID")
+x$samples <- merge(temp[, c("Patient.ID", "lib.size", "norm.factors")], pat_sub[, c("Patient.ID", "group")], by = "Patient.ID") %>%
+  column_to_rownames(., var = "Patient.ID") # Pat_sub has less patients in than the raw count dataframe
 group <- x$samples$group
 
+x$counts <- x$counts[, colnames(x$counts) %in% pat_sub$Patient.ID] # Only include those with the subtypes
 samplenames <- colnames(x)
 
-# Gaining second dataframe (Symbols)
-# biocLite("Homo.sapiens", dependencies = T)
-library(Homo.sapiens)
-rownames(x) <- gsub("\\..*", "", rownames(x)) #Removes version from Ensembl gene ID
-geneid <- rownames(x)
-
-genes <- select(Homo.sapiens, keys = geneid, columns = c("SYMBOL", "TXCHROM", "ENTREZID"), 
-                keytype = "ENSEMBL")
-genes <- genes[!duplicated(genes$SYMBOL),]
-x$genes <- genes
-
-# Calculate counts per million, log counts per million (can also do RPKM [function rpkm()])
-cpm <- cpm(x)
+# Calculate counts per million, log counts per million
+cpms <- cpm(x)
 lcpm <- cpm(x, log = T)
 
 # Remove lowly expressed transcripts
@@ -44,7 +43,7 @@ table(rowSums(x$counts==0)==10) # Show me the amount of transcripts that are zer
 CPM_scaling <- min(x$samples$lib.size)/1000000
 cpm_scale <- 6.5/CPM_scaling
 
-keep.exprs <- rowSums(cpm>cpm_scale)>=1 # Genes must count of 6.5 in lowest library
+keep.exprs <- rowSums(cpms>cpm_scale)>=1 # Genes must count of 6.5 in lowest library
 x <- x[keep.exprs,, keep.lib.sizes = F]
 
 # Normalising gene expression
@@ -54,45 +53,42 @@ x <- estimateCommonDisp(x)
 x <- estimateTagwiseDisp(x)
 
 
-### Double check...
-lcpm <- cpm(x, log = T)
-col.cell <- c("#999999","#56B4E9","#E69F00")[x$samples$group]
-plotMDS(cpm, pch = 16, cex = 2, col = cbcols)
-legend("top",
-       fill = c("#999999", "#56B4E9",
-                "#E69F00"),
-       legend = levels(x$samples$group))
-## Doesn't really separate them based on top 500 varying genes...
-
-# Look at variable genes
-var_genes <- apply(lcpm, 1, var)
-select_var <- names(sort(var_genes, decreasing = T))[1:150]
-
-# Subset logcounts matrix
-highly_variable_lcpm <- lcpm[select_var,]
-# dim(highly_variable_lcpm)
-# head(highly_variable_lcpm)
-
-## Get some nicer colours
-library(gplots)
-library(RColorBrewer)
-mypalette <- brewer.pal(11,"RdYlBu")
-morecols <- colorRampPalette(mypalette)
-mycol <- colorpanel(1000,"blue","white","red")
-
-## Get the SYMBOLS instead of ENTREZ ID
-HvL <- rownames_to_column(as.data.frame(highly_variable_lcpm), var = "ENSEMBL")
-
-HvL1 <- merge(HvL, x$genes, by = "ENSEMBL")
-highly_variable_lcpm_sym <- within(HvL1, rm(TXCHROM, ENSEMBL))
-distCor <- function(x) as.dist(1-cor(t(x)))
-hclustAvg <- function(x) hclust(x, method = "average")
-col.cell1 <- c("#999999","#56B4E9","#E69F00")[x$samples$group]
-
+# ### Double check...
+# lcpm <- cpm(x, log = T)
+# col.cell <- c("#999999","#56B4E9","#E69F00")[x$samples$group]
+# plotMDS(cpms, pch = 16, cex = 2, col = cbcols)
+# legend("top",
+#        fill = c("#999999", "#56B4E9",
+#                 "#E69F00"),
+#        legend = levels(x$samples$group))
+# ## Doesn't really separate them based on top 500 varying genes...
+# 
+# # Look at variable genes
+# var_genes <- apply(lcpm, 1, var)
+# select_var <- names(sort(var_genes, decreasing = T))[1:150]
+# 
+# # Subset logcounts matrix
+# highly_variable_lcpm <- lcpm[select_var,]
+# # dim(highly_variable_lcpm)
+# # head(highly_variable_lcpm)
+# 
+# ## Get some nicer colours
+# library(gplots)
+# library(RColorBrewer)
+# mypalette <- brewer.pal(11,"RdYlBu")
+# morecols <- colorRampPalette(mypalette)
+# mycol <- colorpanel(1000,"blue","white","red")
+# 
+# ## Get the SYMBOLS instead of ENTREZ ID
+# HvL <- rownames_to_column(as.data.frame(highly_variable_lcpm), var = "ENSEMBL")
+# distCor <- function(x) as.dist(1-cor(t(x)))
+# hclustAvg <- function(x) hclust(x, method = "average")
+# col.cell1 <- c("#999999","#56B4E9","#E69F00")[x$samples$group]
+# 
 # HvL2 <- highly_variable_lcpm_sym[, names(highly_variable_lcpm_sym) != "SYMBOL"] %>%
 #   column_to_rownames(., "ENTREZID")
 # 
-# heatmap.2(as.matrix(HvL2),
+# heatmap.2(as.matrix(highly_variable_lcpm),
 #           col = mycol,
 #           trace = "none",
 #           density.info = "none",
@@ -101,8 +97,8 @@ col.cell1 <- c("#999999","#56B4E9","#E69F00")[x$samples$group]
 #           #ColSideColors = col.cell,
 #           scale = "row",
 #           margin = c(10,5), lhei = c(2,10),
-#           labCol = colnames(highly_variable_lcpm_sym),
-#           labRow = highly_variable_lcpm_sym$SYMBOL,
+#           labCol = colnames(highly_variable_lcpm),
+#           labRow = rownames(highly_variable_lcpm),
 #           hclustfun = hclustAvg,
 #           ColSideColors = col.cell1)
 
@@ -152,15 +148,21 @@ dt <- decideTests(tfit)
 # ENSEMBL_MSSs <- efit$genes$SYMBOL[MSS_hiCIRC_MSS]
 
 MSS_hiCIRC_MSI <- which(dt[, "MSI_HvsMSS_hiCIRC"] != 0)
-ENSEMBL_MSI_hiCIRC <- efit$genes$ENSEMBL[MSS_hiCIRC_MSI]
-Symbol_MSI_hiCIRC <- efit$genes$SYMBOL[MSS_hiCIRC_MSI]
-Symbol_MSI_hiCIRC[grepl("ROR", Symbol_MSI_hiCIRC)]
-Symbol_MSI_hiCIRC[grepl("IL17", Symbol_MSI_hiCIRC)]
-Symbol_MSI_hiCIRC[grepl("CCL", Symbol_MSI_hiCIRC)]
-Symbol_MSI_hiCIRC[grepl("IL", Symbol_MSI_hiCIRC)]
-Symbol_MSI_hiCIRC[grepl("CCR", Symbol_MSI_hiCIRC)]
-Symbol_MSI_hiCIRC[grepl("TLR", Symbol_MSI_hiCIRC)]
-Symbol_MSI_hiCIRC[grepl("MUC", Symbol_MSI_hiCIRC)]
+
+str(efit)
+str(tfit)
+
+efit$t
+
+Genes_MSI_hiCIRC <- names(MSS_hiCIRC_MSI)
+
+Genes_MSI_hiCIRC[grepl("ROR", Genes_MSI_hiCIRC)]
+Genes_MSI_hiCIRC[grepl("IL17", Genes_MSI_hiCIRC)]
+Genes_MSI_hiCIRC[grepl("CCL", Genes_MSI_hiCIRC)]
+Genes_MSI_hiCIRC[grepl("IL", Genes_MSI_hiCIRC)]
+Genes_MSI_hiCIRC[grepl("CCR", Genes_MSI_hiCIRC)]
+Genes_MSI_hiCIRC[grepl("TLR", Genes_MSI_hiCIRC)]
+Genes_MSI_hiCIRC[grepl("MUC", Genes_MSI_hiCIRC)]
 
 # i <- which(v$genes$ENSEMBL %in% Symbol_MSI)
 # mycol <- colorpanel(1000,"blue","white","red")
@@ -184,10 +186,10 @@ myData$padjThresh <- as.factor(myData$adj.P.Val < 0.05)
 take_a_look <- myData[myData$adj.P.Val <= 0.01, ]
 View(take_a_look)
 
-
-myData$Labels <- myData$SYMBOL
+head(myData)
+myData$Labels <- rownames(myData)
 labelled_genes <- c("RORC", "TLR4", "CCR6")
-myData$Labels[!myData$SYMBOL %in% labelled_genes] <- ""
+myData$Labels[!rownames(myData) %in% labelled_genes] <- ""
 library(ggrepel)
 
 # pdf(file = "../Figures/Figure_2/Figure2B.pdf", width = 6, height = 6)
@@ -205,37 +207,40 @@ ggplot(data = myData, aes(x = logFC, y = -log10(P.Value))) +
   labs(x = expression(Log[2]*" fold change"), y = expression(-Log[10]*" p-value"))
 dev.off()
 
-MSI_H.vs.MSS[grepl("RORC", MSI_H.vs.MSS$SYMBOL), ]
-MSI_H.vs.MSS_hiCIRC[grepl("RORC", MSI_H.vs.MSS_hiCIRC$SYMBOL), ]
-MSS_hiCIRC.vs.MSS[grepl("RORC", MSS_hiCIRC.vs.MSS$SYMBOL), ]
-
-MSI_H.vs.MSS[grepl("IL17A", MSI_H.vs.MSS$SYMBOL), ]
-MSI_H.vs.MSS_hiCIRC[grepl("IL17A", MSI_H.vs.MSS_hiCIRC$SYMBOL), ]
-MSS_hiCIRC.vs.MSS[grepl("IL17A", MSS_hiCIRC.vs.MSS$SYMBOL), ]
-
-MSI_H.vs.MSS[grepl("IL23R", MSI_H.vs.MSS$SYMBOL), ]
-MSI_H.vs.MSS_hiCIRC[grepl("IL23R", MSI_H.vs.MSS_hiCIRC$SYMBOL), ]
-MSS_hiCIRC.vs.MSS[grepl("IL23R", MSS_hiCIRC.vs.MSS$SYMBOL), ]
-
-MSI_H.vs.MSS[grepl("CCL20", MSI_H.vs.MSS$SYMBOL), ]
-MSI_H.vs.MSS_hiCIRC[grepl("CCL20", MSI_H.vs.MSS_hiCIRC$SYMBOL), ]
-MSS_hiCIRC.vs.MSS[grepl("CCL20", MSS_hiCIRC.vs.MSS$SYMBOL), ]
-
-MSI_H.vs.MSS[grepl("CCR6", MSI_H.vs.MSS$SYMBOL), ]
-MSI_H.vs.MSS_hiCIRC[grepl("CCR6", MSI_H.vs.MSS_hiCIRC$SYMBOL), ]
-MSS_hiCIRC.vs.MSS[grepl("CCR6", MSS_hiCIRC.vs.MSS$SYMBOL), ]
 
 
-MSI_H.vs.MSS[grepl("CIITA", MSI_H.vs.MSS$SYMBOL), ]
-MSI_H.vs.MSS_hiCIRC[grepl("CIITA", MSI_H.vs.MSS_hiCIRC$SYMBOL), ]
-MSS_hiCIRC.vs.MSS[grepl("CIITA", MSS_hiCIRC.vs.MSS$SYMBOL), ]
 
-MSI_H.vs.MSS[grepl("HLA-DR", MSI_H.vs.MSS$SYMBOL), ]
-MSI_H.vs.MSS_hiCIRC[grepl("HLA-DR", MSI_H.vs.MSS_hiCIRC$SYMBOL), ]
-MSS_hiCIRC.vs.MSS[grepl("HLA-DR", MSS_hiCIRC.vs.MSS$SYMBOL), ]
+
+MSI_H.vs.MSS[grepl("RORC", rownames(MSI_H.vs.MSS)), ]
+MSI_H.vs.MSS_hiCIRC[grepl("RORC", rownames(MSI_H.vs.MSS_hiCIRC)), ]
+MSS_hiCIRC.vs.MSS[grepl("RORC", rownames(MSS_hiCIRC.vs.MSS)), ]
+
+MSI_H.vs.MSS[grepl("IL17A", rownames(MSI_H.vs.MSS)), ]
+MSI_H.vs.MSS_hiCIRC[grepl("IL17A", rownames(MSI_H.vs.MSS_hiCIRC)), ]
+MSS_hiCIRC.vs.MSS[grepl("IL17A", rownames(MSS_hiCIRC.vs.MSS)), ]
+
+MSI_H.vs.MSS[grepl("IL23R", rownames(MSI_H.vs.MSS)), ]
+MSI_H.vs.MSS_hiCIRC[grepl("IL23R", rownames(MSI_H.vs.MSS_hiCIRC)), ]
+MSS_hiCIRC.vs.MSS[grepl("IL23R", rownames(MSS_hiCIRC.vs.MSS)), ]
+
+MSI_H.vs.MSS[grepl("CCL20", rownames(MSI_H.vs.MSS)), ]
+MSI_H.vs.MSS_hiCIRC[grepl("CCL20", rownames(MSI_H.vs.MSS_hiCIRC)), ]
+MSS_hiCIRC.vs.MSS[grepl("CCL20", rownames(MSS_hiCIRC.vs.MSS)), ]
+
+MSI_H.vs.MSS[grepl("CCR6", rownames(MSI_H.vs.MSS)), ]
+MSI_H.vs.MSS_hiCIRC[grepl("CCR6", rownames(MSI_H.vs.MSS_hiCIRC)), ]
+MSS_hiCIRC.vs.MSS[grepl("CCR6", rownames(MSS_hiCIRC.vs.MSS)), ]
+
+
+MSI_H.vs.MSS[grepl("CIITA", rownames(MSI_H.vs.MSS)), ]
+MSI_H.vs.MSS_hiCIRC[grepl("CIITA", rownames(MSI_H.vs.MSS_hiCIRC)), ]
+MSS_hiCIRC.vs.MSS[grepl("CIITA", rownames(MSS_hiCIRC.vs.MSS)), ]
+
+MSI_H.vs.MSS[grepl("HLA-DR", rownames(MSI_H.vs.MSS)), ]
+MSI_H.vs.MSS_hiCIRC[grepl("HLA-DR", rownames(MSI_H.vs.MSS_hiCIRC)), ]
+MSS_hiCIRC.vs.MSS[grepl("HLA-DR", rownames(MSS_hiCIRC.vs.MSS)), ]
 
 # save.image(file = "./R_Data/Counts.RData")
-load("./R_Data/Counts.RData")
 
 see_pats <- merge(temp, pat_sub, by = "Patient.ID")
 head(see_pats)
@@ -268,11 +273,11 @@ tryCatch(expr = { library("RCurl")},
 library(qusage)
 
 ## Read in the Genesets
-All_gmt <- read.gmt("./Data/Genesets/msigdb.v6.2.entrez.gmt")
-KEGG_gmt <- read.gmt("./Data/Genesets/c2.cp.kegg.v6.2.entrez.gmt")
-GO_gmt <- read.gmt("./Data/Genesets/c5.all.v6.2.entrez.gmt")
-immuno_gmt <- read.gmt("./Data/Genesets/c7.all.v6.2.entrez.gmt")
-hallmark_gmt <- read.gmt("./Data/Genesets/h.all.v6.2.entrez.gmt")
+All_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/msigdb.v7.0.symbols.gmt")
+KEGG_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/c2.cp.kegg.v7.0.symbols.gmt")
+GO_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/c5.all.v7.0.symbols.gmt")
+immuno_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/c7.all.v7.0.symbols.gmt")
+hallmark_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/h.all.v7.0.symbols.gmt")
 
 ## Filter genesets that appear in only KEGG and GO databases (6103 genesets)
 # filter_gmt <- All_gmt[names(All_gmt) %in% names(KEGG_gmt) | names(All_gmt) %in% names(GO_gmt)]
@@ -285,8 +290,9 @@ filtered_set <- GO_gmt[geneset_indices]
 
 
 ## Perform camera analysis on filtered geneset
+
 specific_genes <- v$genes[v$genes$ENSEMBL %in% rownames(v), ]
-idx <- ids2indices(filtered_set, id = specific_genes$ENTREZID)
+idx <- ids2indices(filtered_set, id = rownames(v))
 
 camera_results <- camera(v, idx, design, contrast = contr.matrix[, "MSI_HvsMSS"])
 head(camera_results)
