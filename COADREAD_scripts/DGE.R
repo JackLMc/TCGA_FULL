@@ -283,22 +283,29 @@ hallmark_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/h.all.v7.0.symbols.gmt")
 # filter_gmt <- All_gmt[names(All_gmt) %in% names(KEGG_gmt) | names(All_gmt) %in% names(GO_gmt)]
 # filter_gmt <- All_gmt[names(All_gmt) %in% names(GO_gmt)]
 
-## Filter genesets for very small/very big sizes (reduces multiple comparison deficit) (4326 genesets)
+## Filter genesets for very small/very big sizes (reduces multiple comparison deficit) (2918 genesets)
 geneset_sizes <- unlist(lapply(GO_gmt, length))
-geneset_indices <- which(geneset_sizes>=15 & geneset_sizes<200)
+geneset_indices <- which(geneset_sizes>=30 & geneset_sizes<200)
 filtered_set <- GO_gmt[geneset_indices]
+
+length(filtered_set)
+
+str(All_gmt)
+
+
+names(All_gmt)[base:: grepl("REACTIVE_OXYGEN", names(All_gmt))]
 
 
 ## Perform camera analysis on filtered geneset
-
-specific_genes <- v$genes[v$genes$ENSEMBL %in% rownames(v), ]
 idx <- ids2indices(filtered_set, id = rownames(v))
 
-camera_results <- camera(v, idx, design, contrast = contr.matrix[, "MSI_HvsMSS"])
+camera_results <- camera(v, idx, design, contrast = contr.matrix[, "MSS_hiCIRCvsMSS"])
 head(camera_results)
 View(camera_results)
-droplevels(subset(camera_results, PValue <= 0.01))
+droplevels(subset(camera_results, PValue <= 0.001))
 
+
+camera_results[grepl("REACTIVE_OXYGEN", rownames(camera_results)), ]
 
 # BiocManager::install("qusage")
 library(qusage)
@@ -408,8 +415,8 @@ response <- renameNetwork(current_network_name, as.numeric(current_network_suid)
 
 
 # Bespoke
-CTGenesets <- read.csv("../../1_TCGA/Exploratory_Data/Genesets/Cell_Type_Geneset.csv")
-SigGenesets <- read.csv("../../1_TCGA/Exploratory_Data/Genesets/Signature_Geneset.csv")
+CTGenesets <- read.csv("./Exploratory_Data/Genesets/Cell_Type_Geneset.csv")
+SigGenesets <- read.csv("./Exploratory_Data/Genesets/Signature_Geneset.csv")
 Genesets <- rbind(CTGenesets, SigGenesets)
 
 dd <- deduplicate(Genesets)
@@ -429,9 +436,7 @@ filtered_set <- geneset_list[geneset_indices]
 
 th17 <- geneset_list[["Th17"]]
 ## Perform camera analysis on filtered geneset
-specific_genes <- v$genes[v$genes$ENSEMBL %in% rownames(v), ]
-
-idx <- ids2indices(th17, id = specific_genes$SYMBOL)
+idx <- ids2indices(th17, id = rownames(v))
 
 camera_results <- camera(v, idx, design, contrast = contr.matrix[, "MSI_HvsMSS_hiCIRC"])
 head(camera_results)
