@@ -18,6 +18,13 @@ pat_sub <- read.csv("Output/Patient_Subtypes_13_02.csv")[, c("Patient.ID", "Subt
 # Number of mutations between groups ----
 # Count up
 ## Including silent
+# find nonsynonymous mutations
+
+head(tcga_mut)
+unique(tcga_mut$Amino_acids)
+
+colnames(tcga_mut)
+
 Mutation_numbers <- tcga_mut %>%
   dplyr:: group_by(Patient.ID, Variant_Type) %>%
   dplyr:: summarise(length(Variant_Type)) %>%
@@ -33,17 +40,21 @@ mut_clin <- Mutation_numbers %>%
 
 mut_clin <- factorthese(mut_clin, c("Patient.ID", "Variant"))
 
+
+
+log(3)
+
 # Plot
 ## All
 for(i in levels(mut_clin$Variant)){
   print(i)
   work <- droplevels(subset(mut_clin, Variant == i))
-  work$Rank <- rank(work$Number)
+  work$Rank <- log(work$Number + 1)
   temp_plot <- ggplot(work, aes(x = Subtype, y = Rank)) +
     geom_boxplot(alpha = 0.5, width = 0.2) + 
     geom_violin(aes(Subtype, fill = Subtype), scale = "width", alpha = 0.8) +
     scale_fill_manual(values = cbcols) +
-    labs(x = "Subtype", y = paste0("Rank transformed ", i, " mutations")) +
+    labs(x = "Subtype", y = paste0("ln(", i, " mutations + 1)")) +
     theme_bw() +
     theme(axis.text = element_text(size = 16)) +
     theme(legend.direction = "horizontal", legend.position = "top") +
@@ -52,7 +63,6 @@ for(i in levels(mut_clin$Variant)){
   filen <- paste0(i, ".pdf")
   ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf", path = "./Figures/Mutation/Numbers",
                    height = 6, width = 6)}
-
 
 # Remove silent
 # tcga_mut[, grep("Silent", ignore.case = T, tcga_mut)] %>% head()
@@ -77,12 +87,12 @@ mut_clin$Consequence <- as.factor(mut_clin$Consequence)
 for(i in levels(mut_clin$Consequence)){
   print(i)
   work <- droplevels(subset(mut_clin, Consequence == i))
-  work$Rank <- rank(work$Number)
+  work$Rank <- log(work$Number + 1)
   temp_plot <- ggplot(work, aes(x = Subtype, y = Rank)) +
     geom_boxplot(alpha = 0.5, width = 0.2) + 
     geom_violin(aes(Subtype, fill = Subtype), scale = "width", alpha = 0.8) +
     scale_fill_manual(values = cbcols) +
-    labs(x = "Subtype", y = paste0("Rank transformed ", i, " mutations")) +
+    labs(x = "Subtype", y = paste0("ln(", i, " mutations + 1)")) +
     theme_bw() +
     theme(axis.text = element_text(size = 16)) +
     theme(legend.direction = "horizontal", legend.position = "top") +
