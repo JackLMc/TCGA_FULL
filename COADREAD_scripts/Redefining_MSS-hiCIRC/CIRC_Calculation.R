@@ -90,8 +90,8 @@ MSS <- droplevels(subset(CIRC_clin, MSI_STATUS == "MSS"))
 ks.test(MSI_H$CIRC_Genes, MSS$CIRC_Genes, na.rm = T)
 
 # devtools:: install_github("tpepler/nonpar")
-# library(nonpar)
-# cucconi.test(MSI_H$CIRC_Genes, MSS$CIRC_Genes, method = c("permutation", "bootstrap"))
+library(nonpar)
+cucconi.test(MSI_H$CIRC_Genes, MSS$CIRC_Genes, method = c("permutation", "bootstrap"))
 
 # Clustering ----
 # Partitioning clustering - use MSI_H patients to find highest clusters for cutoff of CIRC score
@@ -148,8 +148,8 @@ ggplot(df1a, aes(x = Phenograph_Clusters, y = CIRC_Genes)) +
   geom_boxplot(alpha = 0.5, width = 0.2) + 
   geom_violin(aes(Phenograph_Clusters, fill = Phenograph_Clusters),
               scale = "width", alpha = 0.8) +
-  scale_fill_manual(values = c("1" = "#009E73", "2" = "#56B4E9", "3" = "#E69F00",
-                               "4" = "#CC79A7", "5" = "#0072B2", "6" = "#999999",
+  scale_fill_manual(values = c("1" = "#E69F00",
+                               "2" = "#CC79A7", "3" = "#0072B2", "6" = "#999999",
                                "7" = "#F0E442", "8" = "#D55E00")) +
   labs(x = "Phenograph Clusters", y = "CIRC Enrichment Score")+
   theme_bw()+
@@ -197,8 +197,8 @@ ggbiplot(prin_comp, obs.scale = 1, var.scale = 1,
   theme_bw() +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
   theme(legend.direction = "horizontal", legend.position = "top") +
-  scale_colour_manual(values = c("1" = "#009E73", "2" = "#56B4E9", "3" = "#E69F00",
-                                 "4" = "#CC79A7", "5" = "#0072B2", "6" = "#999999",
+  scale_colour_manual(values = c( "1" = "#E69F00",
+                                 "2" = "#CC79A7", "3" = "#0072B2", "6" = "#999999",
                                  "7" = "#F0E442", "8" = "#D55E00"))
 dev.off()
 
@@ -226,12 +226,12 @@ ggplot(umap_dimensions, aes(x = Dim1, y = Dim2, colour = CIRC_score)) +
 dev.off()
 
 
-## Phenograph
+## UMAP
 pdf("./Figures/1_Redefinition/UMAP_CIRC_Pheno.pdf")
 ggplot(umap_dimensions, aes(x = Dim1, y = Dim2, colour = Pcluster)) +
-  geom_point(size = 4, alpha = 0.8, pch = 20) +
-  scale_colour_manual(values = c("1" = "#009E73", "2" = "#56B4E9", "3" = "#E69F00",
-                                 "4" = "#CC79A7", "5" = "#0072B2", "6" = "#999999",
+  geom_point(size = 8, alpha = 0.8, pch = 20) +
+  scale_colour_manual(values = c("1" = "#E69F00",
+                                 "2" = "#CC79A7", "3" = "#0072B2", "6" = "#999999",
                                  "7" = "#F0E442", "8" = "#D55E00")) +
   theme_bw() +
   theme(axis.text = element_text(size = 16)) +
@@ -281,6 +281,6 @@ dev.off()
 # WRITE OUT THE hiCIRC PATIENT SUBTYPES ----
 write.csv("./Output/Patient_Subtypes_13_02.csv", x = Patient_pool[, c("Patient.ID", "CIRC_Genes", "Subtype")], row.names = F)
 
-
+Patient_pool <- read.csv("./Output/Patient_Subtypes_13_02.csv")
 
 #### END ####
