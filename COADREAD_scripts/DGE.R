@@ -286,7 +286,18 @@ hallmark_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/h.all.v7.0.symbols.gmt")
 ## Filter genesets for very small/very big sizes (reduces multiple comparison deficit) (2918 genesets)
 geneset_sizes <- unlist(lapply(GO_gmt, length))
 geneset_indices <- which(geneset_sizes>=30 & geneset_sizes<200)
-filtered_set <- GO_gmt[geneset_indices]
+filtered_set <- immuno_gmt[geneset_indices]
+
+library(tidyverse)
+?contains()
+
+
+vars_select(names(filtered_set), contains("VS"))
+names(filtered_set) %>% contains("VS")
+
+names(filtered_set)[grep("th17", ignore.case = T, names(filtered_set))] ### THIS MIGHT BE AN IDEA?!?!
+
+
 
 length(filtered_set)
 
