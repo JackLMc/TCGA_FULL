@@ -42,7 +42,6 @@ set.seed(123)
 pdf("./Figures/Mutation/Recurrent/hiCIRC_muts.pdf")
 geneCloud(mutation_maf1, minMut = no_pats1, random.order = F)
 dev.off()
-
 pdf("./Figures/Mutation/Recurrent/MSS_muts.pdf")
 geneCloud(mutation_maf2, minMut = no_pats2, random.order = F)
 dev.off()
