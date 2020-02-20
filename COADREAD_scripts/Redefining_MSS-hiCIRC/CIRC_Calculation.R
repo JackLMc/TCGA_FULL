@@ -49,8 +49,8 @@ Enrichment_CIRC1 <- Enrichment_CIRC %>% as.data.frame() %>%
 
 # START MSS-hi-CIRC Caclulation --------
 # Read Clinical Stuff in ----
-Clin_540 <- read.csv("./Output/Clinical_Data_540.csv")
-CIRC_clin <- merge(Enrichment_CIRC1, Clin_540, by = "Patient.ID")
+Clin_542 <- read.csv("./Output/Clinical_Data_542.csv")[, c("Patient.ID", "MSI_STATUS")]
+CIRC_clin <- merge(Enrichment_CIRC1, Clin_542, by = "Patient.ID")
 
 shapiro.test(Enrichment_CIRC1$CIRC_Genes) # Sig different from normal distribution
 
@@ -75,15 +75,7 @@ count(CIRC_clin, vars = c("MSI_STATUS"))
 # Analysing variance differences ----
 # Levene-test (analysis of variance)
 CIRC_clin$MSI_STATUS <- as.factor(CIRC_clin$MSI_STATUS)
-flig_test <- fligner.test(CIRC_clin$CIRC_Genes, g = CIRC_clin$MSI_STATUS)$p.value # Statistical test of variance, variance is the measure of how far numbers differ from the mean
-# This test will therefore test how much
-
-Test <- cbind("Fligner Test",
-              round(flig_test, 6)) %>% as.data.frame()
-colnames(Test) <- c("Method", "P Value")
-rownames(Test) <- NULL
-
-# bartlett.test(CIRC_clin$CIRC_Genes, g = CIRC_clin$MSI_STATUS) # Assumes normality
+fligner.test(CIRC_clin$CIRC_Genes, g = CIRC_clin$MSI_STATUS)$p.value # Statistical test of variance, variance is the measure of how far numbers differ from the mean
 
 MSI_H <- droplevels(subset(CIRC_clin, MSI_STATUS == "MSI-H"))
 MSS <- droplevels(subset(CIRC_clin, MSI_STATUS == "MSS"))
@@ -102,7 +94,7 @@ CIRC_for_Cluster <- rownames_to_column(as.data.frame(Counts_cqn), var = "SYMBOL"
 pca1 <- CIRC_for_Cluster %>%
   tidyr:: gather(contains("TCGA"), key = "Patient.ID", value = "CQN")  %>%
   spread(key = "SYMBOL", value = "CQN") %>% 
-  merge(Clin_540, by = "Patient.ID") # Merge with cleaned clinical
+  merge(Clin_542, by = "Patient.ID") # Merge with cleaned clinical
 
 my_data <- pca1 %>%
   droplevels() %>%
@@ -250,7 +242,7 @@ count(df1a, vars = c("Phenograph_Clusters"))
 # Take the cutoff as 31% quantile
 cutoff <- unname(quantile(df1a$CIRC_Genes, 1 - (59/86)))
 
-Seg_hiCIRC <- merge(Enrichment_CIRC1, Clin_540, by = "Patient.ID")
+Seg_hiCIRC <- merge(Enrichment_CIRC1, Clin_542, by = "Patient.ID")
 hiCIRC <- droplevels(subset(Seg_hiCIRC, MSI_STATUS == "MSS" & CIRC_Genes >= cutoff))
 Patient_pool <- Seg_hiCIRC
 Patient_pool$Subtype <- ifelse((Patient_pool$Patient.ID %in% hiCIRC$Patient.ID), "MSS-hiCIRC", as.character(Patient_pool$MSI_STATUS))
