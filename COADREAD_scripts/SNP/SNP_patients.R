@@ -135,6 +135,8 @@ for(i in levels(file_id_for_dupes$Patient.ID)){
   c <- c + 1
 }
 
+mean(output$Percentage_Match)
+
 # The patients with more than one file in the SNP array do not have concordant results, later date. Boris said it shouldn't matter too much.
 
 
@@ -153,8 +155,11 @@ write.csv(TB, file = "./Output/file_id_pats_SNP.csv", row.names = F)
 
 clusters <- TB[, c("file_id", "Subtype")]
 clusters$file_id <- gsub("\\.", "-", clusters$file_id)
-
 write.table("./Output/clusters_13_02.txt", x = clusters, row.names = F, quote = F, sep = "\t")
+
+clusters_MSS <- droplevels(subset(clusters, Subtype != "MSI-H"))
+write.table("./Output/clusters_13_02.MSS.txt", x = clusters_MSS, row.names = F, quote = F, sep = "\t")
+
 
 save.image("./R_Data/SNP_patient_find.RData")
 
