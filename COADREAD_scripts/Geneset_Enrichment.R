@@ -360,7 +360,7 @@ for(i in 1:length(genes_of_interest)){
                    height = 6, width = 6)}
 
 ## Bespoke genes
-FPKM2$SYMBOL[grepl("B2M", FPKM2$SYMBOL)] # Check whether your gene exists in the dataset
+FPKM2$SYMBOL[grepl("ND4", FPKM2$SYMBOL)] # Check whether your gene exists in the dataset
 GOI <- droplevels(subset(MA, SYMBOL == "MT-ND4")) 
 
 GOI$Rank <- rank(GOI$FPKM)
