@@ -54,7 +54,7 @@ CIRC_clin <- merge(Enrichment_CIRC1, Clin_542, by = "Patient.ID")
 
 shapiro.test(Enrichment_CIRC1$CIRC_Genes) # Sig different from normal distribution
 
-# pdf("./Figures/1_Redefinition/Violin Plot of Mean CIRC.pdf", height = 6, width = 6)
+# pdf("./Figures/1_Redefinition/CIRC_MSS_MSI.pdf", height = 6, width = 6)
 ggplot(CIRC_clin, aes(x = MSI_STATUS, y = CIRC_Genes)) +
   geom_boxplot(alpha = 0.5, width = 0.2) +
   geom_violin(aes(MSI_STATUS, fill = MSI_STATUS),
