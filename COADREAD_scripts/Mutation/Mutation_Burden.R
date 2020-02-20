@@ -18,13 +18,7 @@ pat_sub <- read.csv("Output/Patient_Subtypes_13_02.csv")[, c("Patient.ID", "Subt
 # Number of mutations between groups ----
 # Count up
 ## Including silent
-# find nonsynonymous mutations
-
-head(tcga_mut)
-unique(tcga_mut$Amino_acids)
-
-colnames(tcga_mut)
-
+# find nonsynonymous mutations??
 Mutation_numbers <- tcga_mut %>%
   dplyr:: group_by(Patient.ID, Variant_Type) %>%
   dplyr:: summarise(length(Variant_Type)) %>%
@@ -39,10 +33,6 @@ mut_clin <- Mutation_numbers %>%
   gather(., -"Patient.ID", -"Subtype", key = "Variant", value = "Number") %>% droplevels()
 
 mut_clin <- factorthese(mut_clin, c("Patient.ID", "Variant"))
-
-
-
-log(3)
 
 # Plot
 ## All
