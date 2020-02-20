@@ -15,7 +15,7 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
 load("./R_Data/Mutation_clean.RData")
 
 # Recurrent Mutations ----
-devtools::install_github(repo = "PoisonAlien/TCGAmutations")
+# devtools::install_github(repo = "PoisonAlien/TCGAmutations")
 
 pat_sub <- read.csv("Output/Patient_Subtypes_13_02.csv")
 pat_sub$Patient.ID <- gsub("\\.", "-", pat_sub$Patient.ID) %>% as.factor()
