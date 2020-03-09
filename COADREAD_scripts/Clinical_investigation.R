@@ -13,14 +13,10 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
             "MSS" = "#009E73")
 
 Clin542 <- read.csv("./Output/Clinical_Data_542.csv")
-pat_sub <- read.csv("./Output/Patient_Subtypes_13_02.csv")
+pat_sub <- read.csv("./Output/Patient_Subtypes_09_03.csv")
 
 WD <- merge(pat_sub, Clin542, by = "Patient.ID")
 
-
-
-
-head(WD)
 library(reshape2)
 dcast(WD, MSI_STATUS ~ Pathologic_stage)
 
@@ -31,12 +27,12 @@ WD$Age_years <- floor(WD$Age_years)
 WD1 <- WD
 
 # Collate the sites
-WD1$Collated_site <- ifelse((is.na(WD1$Neoplasm_subdivision)), as.character(WD1$Site_of_disease), as.character(WD1$Neoplasm_subdivision))
+WD1$Collated_site_keep <- ifelse((is.na(WD1$Neoplasm_subdivision)), as.character(WD1$Site_of_disease), as.character(WD1$Neoplasm_subdivision))
 
 ## Rename to cecum, ascending, hepatic and transverse to right sided, all others to left - Mik et al., 2017 paper
-WD1$Collated_site <- ifelse((WD1$Collated_site == "cecum" | WD1$Collated_site == "ascending colon" |
-                               WD1$Collated_site == "hepatic flexure" | WD1$Collated_site == "transverse colon"), "right",
-                                          ifelse((is.na(WD1$Collated_site)), NA, "left"))
+WD1$Collated_site <- ifelse((WD1$Collated_site_keep == "cecum" | WD1$Collated_site_keep == "ascending colon" |
+                               WD1$Collated_site_keep == "hepatic flexure" | WD1$Collated_site_keep == "transverse colon"), "right",
+                                          ifelse((is.na(WD1$Collated_site_keep)), NA, "left"))
 
 WD1$Histological_Type <- ifelse((grepl("mucinous", WD1$Histological_Type)), "mucinous adenocarcinoma", "adenocarcinoma")
 
@@ -46,15 +42,83 @@ WD1$Pathologic_stage <- ifelse((WD1$Pathologic_stage == "stage i" | WD1$Patholog
                                                 WD1$Pathologic_stage == "stage iiib" | WD1$Pathologic_stage == "stage iiic"), "3", 
                                              ifelse((WD1$Pathologic_stage == "<NA>"), NA, "4")))) %>% as.integer()
 
-WD1$Pathologic_stage
 
 range(WD1$Age_years, na.rm = T)
+
+## Collate clinical data on MSI_STATUS
+### Age
+droplevels(subset(WD1, MSI_STATUS == "MSS"))$Age_years %>% mean(., na.rm = T)
+droplevels(subset(WD1, MSI_STATUS == "MSS"))$Age_years %>% sd(., na.rm = T)
+
+droplevels(subset(WD1, MSI_STATUS == "MSI-H"))$Age_years %>% mean(., na.rm = T)
+droplevels(subset(WD1, MSI_STATUS == "MSI-H"))$Age_years %>% sd(., na.rm = T)
+
+### Gender
+droplevels(subset(WD1, MSI_STATUS == "MSS")) %>% count(., Gender)
+droplevels(subset(WD1, MSI_STATUS == "MSI-H")) %>% count(., Gender)
+
+## Colon or Rectum
+WD1$C_or_R <- ifelse((WD1$Collated_site_keep == "rectum" | WD1$Collated_site_keep == "rectosigmoid junction"), "rectum", 
+       ifelse((is.na(WD1$Collated_site_keep)), NA, "colon"))
+droplevels(subset(WD1, MSI_STATUS == "MSS")) %>% count(., C_or_R)
+droplevels(subset(WD1, MSI_STATUS == "MSI-H")) %>% count(., C_or_R)
+
+### Histological Type
+droplevels(subset(WD1, MSI_STATUS == "MSS")) %>% count(., Histological_Type)
+droplevels(subset(WD1, MSI_STATUS == "MSI-H")) %>% count(., Histological_Type)
+
+### Sided
+droplevels(subset(WD1, MSI_STATUS == "MSS")) %>% count(., Collated_site)
+droplevels(subset(WD1, MSI_STATUS == "MSI-H")) %>% count(., Collated_site)
+
+### BMI
+WD1$Height_sq <- (WD1$Height/100) * (WD1$Height/100)
+WD1$BMI <- WD1$Weight / WD1$Height_sq
+
+droplevels(subset(WD1, MSI_STATUS == "MSS"))$BMI %>% mean(., na.rm = T)
+droplevels(subset(WD1, MSI_STATUS == "MSS"))$BMI %>% sd(., na.rm = T)
+
+droplevels(subset(WD1, MSI_STATUS == "MSI-H"))$BMI %>% mean(., na.rm = T)
+droplevels(subset(WD1, MSI_STATUS == "MSI-H"))$BMI %>% sd(., na.rm = T)
+
+### Stage
+droplevels(subset(WD1, MSI_STATUS == "MSS")) %>% count(., Pathologic_stage)
+droplevels(subset(WD1, MSI_STATUS == "MSI-H")) %>% count(., Pathologic_stage)
+
+### Polyps
+droplevels(subset(WD1, MSI_STATUS == "MSS")) %>% count(., Polyps) # Not enough info
+droplevels(subset(WD1, MSI_STATUS == "MSI-H")) %>% count(., Polyps) # Not enough info
+
+
+### Venous Invasion
+droplevels(subset(WD1, MSI_STATUS == "MSS")) %>% count(., Venous_invasion)
+droplevels(subset(WD1, MSI_STATUS == "MSI-H")) %>% count(., Venous_invasion)
+
+### Lymph Count
+droplevels(subset(WD1, MSI_STATUS == "MSS"))$Lymph_count %>% mean(., na.rm = T)
+droplevels(subset(WD1, MSI_STATUS == "MSS"))$Lymph_count %>% sd(., na.rm = T)
+
+droplevels(subset(WD1, MSI_STATUS == "MSI-H"))$Lymph_count %>% mean(., na.rm = T)
+droplevels(subset(WD1, MSI_STATUS == "MSI-H"))$Lymph_count %>% sd(., na.rm = T)
+
+
 iR1 <- factorthese(WD1, colnames(WD1)[!'%in%'(colnames(WD1), c("Age_years", "Lymph_count", "Pathologic_stage"))])
 str(iR1)
+
+
+
+
+
+
+
+
 # Set MSS as the baseline
 iR1$Subtype <- relevel(iR1$Subtype, "MSS")
 
 iR2 <- column_to_rownames(iR1, var = "Patient.ID")
+
+
+
 
 library(nnet)
 test <- multinom(Subtype ~ 
