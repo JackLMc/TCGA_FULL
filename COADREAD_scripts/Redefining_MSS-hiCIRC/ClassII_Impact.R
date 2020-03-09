@@ -20,8 +20,8 @@ CIRC_IG <- read.csv("./Exploratory_Data/Genesets/CIRC.csv")
 CIRC_IG$SYMBOL <- as.factor(CIRC_IG$SYMBOL)
 
 ## Clinical
-pat_sub <- read.csv("./Output/Patient_Subtypes_13_02.csv")
-Clin_540 <- read.csv("./Output/Clinical_Data_540.csv")
+pat_sub <- read.csv("./Output/Patient_Subtypes_09_03.csv")
+Clin_542 <- read.csv("./Output/Clinical_Data_542.csv")
 
 ## Label CIRC genes 
 CIRC_genes <- droplevels(subset(CIRC_IG, CIRC == T)) %>%
@@ -76,10 +76,6 @@ test_model <- glm(formula = Subtype ~  HLA.DPA1 + HLA.DPB1 + HLA.DQA1 + HLA.DQA2
 stepAIC(test_model)
 summary(test_model)
 
-str(bet_model)
-this <- summary(bet_model)
-
-
 # While no exact equivalent to the R2 of linear regression exists, the McFadden R2 index can be used to assess the model fit.
 library(pscl)
 pR2(bet_model)
@@ -95,14 +91,13 @@ anova(bet_model, test = "Chisq")
 # The delta values should not greatly differ
 # K=number of samples, i.e., leave-one-out CV.
 library(boot)
-cv.glm(my_data, model, K=nrow(my_data))$delta
+cv.glm(my_data, bet_model, K=nrow(my_data))$delta
 
 
 
 #### Complex model for ROC Curve ####
 # attempt
 # 1 = MSS, 2 = MSS-hiCIRC
-?stepAIC()
 library(e1071)
 library(ROCR)
 lvls <- levels(my_data$Subtype)
