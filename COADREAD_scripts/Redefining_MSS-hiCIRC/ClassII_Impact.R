@@ -13,6 +13,8 @@ my_comparisons <- list(c("MSS-hiCIRC", "MSI-H"),
 # Read in data and process ----
 load("./R_Data/Counts_clean.RData")
 
+# Don't se a seed, as lower down the seed is set again and again for the loop
+
 ## CIRC Geneset
 CIRC_IG <- read.csv("./Exploratory_Data/Genesets/CIRC.csv")
 CIRC_IG$SYMBOL <- as.factor(CIRC_IG$SYMBOL)
@@ -59,7 +61,6 @@ my_data <- my_data[!('%in%'(colnames(my_data), c("CIRC_Genes")))]
 ## Straight forward model
 model <- glm(Subtype ~.,family = binomial(link = "logit"), data = my_data, control = list(maxit = 50))
 
-?glm
 summary(model)
 library(MASS)
 stepAIC(model)
@@ -71,9 +72,13 @@ summary(bet_model)
 
 
 test_model <- glm(formula = Subtype ~  HLA.DPA1 + HLA.DPB1 + HLA.DQA1 + HLA.DQA2 + HLA.DRA + HLA.DRB5, family = binomial(link = "logit"), 
-                 data = my_data)
+                 data = my_data, control = list(maxit = 50))
 stepAIC(test_model)
 summary(test_model)
+
+str(bet_model)
+this <- summary(bet_model)
+
 
 # While no exact equivalent to the R2 of linear regression exists, the McFadden R2 index can be used to assess the model fit.
 library(pscl)
@@ -84,7 +89,7 @@ pR2(test_model)
 exp(cbind(OR = coef(model), confint(model)))
 
 #Get Chi-squared ANOVA P values between your groups
-anova(model, test = "Chisq")
+anova(bet_model, test = "Chisq")
 
 # Perform cross validation (CV) analysis
 # The delta values should not greatly differ
@@ -94,14 +99,10 @@ cv.glm(my_data, model, K=nrow(my_data))$delta
 
 
 
-
-
-
-
-
 #### Complex model for ROC Curve ####
 # attempt
 # 1 = MSS, 2 = MSS-hiCIRC
+?stepAIC()
 library(e1071)
 library(ROCR)
 lvls <- levels(my_data$Subtype)
@@ -124,7 +125,6 @@ plot(x = NA, y = NA, xlim = c(0, 1), ylim = c(0, 1),
      ylab = "True Positive Rate",
      xlab = "False Positive Rate",
      bty = "n")
-
 
 # 1 = MSS, 2 = hiCIRC
 
@@ -155,7 +155,7 @@ for(seed in 1:100){
   
   coordinate_list[[seed]] <- as.data.frame(cbind(X_coord = roc.x, Y_coord = roc.y))
   
-  lines(roc.y ~ roc.x, col = alpha(cbcols[type.id + 3], 0.2), lwd = 2)
+  lines(roc.y ~ roc.x, col = alpha("#E69F00", 0.2), lwd = 2)
   nbauc <- performance(pred, "auc")
   nbauc <- unlist(slot(nbauc, "y.values"))
   
@@ -163,9 +163,6 @@ for(seed in 1:100){
   AUC_df[c, "ROC"] <- nbauc
   c <- c + 1
 }
-
-
-AUC_df
 
 legend("bottomright", legend = c("Average AUC - 0.94"),
        col = c("#E69F00"), lty = 1, cex = 1.2, lwd = 2)
