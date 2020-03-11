@@ -37,7 +37,7 @@ tcga_cBio <- tcga_cBio[tcga_cBio$Patient.ID %in% tcga_FH1$Patient.ID, ]
 tcga_CB <- droplevels(subset(tcga_cBio, Sample.Type == "Primary"))
 # tcga_CB$Patient.ID[duplicated(tcga_CB$Patient.ID)]
 
-tcga_clinical <- merge(tcga_cBio, tcga_FH1, by = "Patient.ID")
+tcga_clinical <- merge(tcga_CB, tcga_FH1, by = "Patient.ID")
 
 
 # Finds two more patients...
