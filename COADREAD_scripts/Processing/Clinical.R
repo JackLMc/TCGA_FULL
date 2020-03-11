@@ -1,4 +1,4 @@
-# A script to clea and process clinical data from the COADREAD project of TCGA
+# A script to clean and process clinical data from the COADREAD project of TCGA
 ## Packages
 library(UsefulFunctions)
 library(tidyverse)
