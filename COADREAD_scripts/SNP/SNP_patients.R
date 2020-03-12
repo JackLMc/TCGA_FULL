@@ -120,7 +120,6 @@ file_id_for_dupes <- normals[normals$Patient.ID %in% Pats_with_dupes, ] %>% drop
 dupes_file <- file_id_for_dupes$file_id %>% as.character()
 
 SNP_dupes <- SNP_normals[rownames(SNP_normals) %in% dupes_file, ]
-dim(SNP_dupes)
 
 file_id_for_dupes$Patient.ID <- as.factor(file_id_for_dupes$Patient.ID)
 
@@ -147,7 +146,6 @@ working_SNPs <- SNP_normals[rownames(SNP_normals) %in% undup_hiCIRC, ]
 df1 <- rownames_to_column(as.data.frame(working_SNPs), var = "file_id")
 df2 <- merge(df1, files[, c("file_id", "Patient.ID")], by = "file_id") %>% column_to_rownames(., var = "Patient.ID")
 
-head(df2)[, 1:6]
 this_bit <- rownames_to_column(df2, var = "Patient.ID") %>% .[, 1:2]
 TB <- merge(this_bit, hiCIRC, by = "Patient.ID")[, c("Patient.ID", "file_id", "Subtype")]
 
