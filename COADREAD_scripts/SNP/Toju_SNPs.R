@@ -2,10 +2,21 @@
 library(tidyverse)
 
 ## Read in required data
-SNPs_to_read <- read.csv("./Data/SNPs/Toju/SNP_Toju.csv")$SNP # these are rs numbers... Need to do this on the final matrix...
+SNPs_to_read <- read.csv("./Data/SNPs/Toju/SNP_Toju.csv")$SNP # these are rs numbers... Need to do this on the annotation matrix...
 get <- read.delim("./Data/SNPs/14_02/annotation/SNP_annotations.hg19.txt")[, c("Probe_Set_ID", "dbSNP_RS_ID")]
 
 these_probes <- get[get$dbSNP_RS_ID %in% SNPs_to_read, ]
+
+Toju_sig <- c("rs4577037", "rs4500045",
+              "rs859", "rs4500045",
+              "rs6692729", "rs6692729",
+              "rs4500045", "rs13331952",
+              "rs2291299", "rs4796105", "rs13331952")
+
+
+these_probes[these_probes$dbSNP_RS_ID %in% Toju_sig, ]
+
+
 
 
 ## Subset input dataframe
