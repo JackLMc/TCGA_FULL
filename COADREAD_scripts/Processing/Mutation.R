@@ -8,7 +8,7 @@ library(maftools)
 # Read in the public mutation data and merge with the clinical data ----
 mutation_maf <- read.maf("./Data/Mutations/mc3.v0.2.8.PUBLIC.maf", verbose = F, isTCGA = T)
 
-mutation <- muta@data # THESE ARE SOMATIC SNPs
+mutation <- mutation_maf@data # THESE ARE SOMATIC SNPs
 mutation$IMPACT <- as.factor(mutation$IMPACT)
 mutation$Patient.ID <- samptopat(mutation$Tumor_Sample_Barcode)
 mutation$Patient.ID <- gsub("-", ".", mutation$Patient.ID)
