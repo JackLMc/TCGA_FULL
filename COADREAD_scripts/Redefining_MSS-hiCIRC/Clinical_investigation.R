@@ -111,7 +111,13 @@ colnames(WD1)
 droplevels(subset(WD1, MSI_STATUS == "MSS")) %>% count(., Lymphovascular.invasion.indicator)
 droplevels(subset(WD1, MSI_STATUS == "MSI-H")) %>% count(., Lymphovascular.invasion.indicator)
 
-Neoadjuvant.Therapy.Type.Administered.Prior.To.Resection.Text
+
+
+## KRAS mutants
+KRAS_pats <- read.csv("./Output/KRAS_mutants.csv")$. %>% levels()
+
+
+
 
 ###  Multinomial linear regression for Subtype
 # Calculate BMI

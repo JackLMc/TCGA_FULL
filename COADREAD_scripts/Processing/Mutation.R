@@ -14,8 +14,7 @@ mutation$Patient.ID <- samptopat(mutation$Tumor_Sample_Barcode)
 mutation$Patient.ID <- gsub("-", ".", mutation$Patient.ID)
 
 # Collate the patients I want to look for (taken from 1_FPKM.R)
-Patient_list <- read.delim("./Output/Patient_list.txt")
-Patient_list <- levels(Patient_list$x)
+Patient_list <- read.delim("./Output/Patient_list.txt")$x %>% levels()
 tcga_mut <- mutation[mutation$Patient.ID %in% Patient_list, ]
 tcga_mut <- factorthese(tcga_mut, c("Feature_type", "Feature", "BIOTYPE",
                                     "VARIANT_CLASS", "Variant_Classification",
