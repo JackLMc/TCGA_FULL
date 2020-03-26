@@ -14,7 +14,7 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
 
 load("./R_Data/Counts_clean.RData")
 
-pat_sub <- read.csv("./Output/Patient_Subtypes_13_02.csv")
+pat_sub <- read.csv("./Output/Patient_Subtypes_09_03.csv")
 library(reshape2)
 dcast(pat_sub, Subtype ~., length)
 
@@ -307,7 +307,7 @@ genes_of_interest <- c("IL6", "IL1B", "IL23A", "TGFB1",
                        "CCR6", "TLR4", "TLR2", "CIITA",
                        "RORC", "IL17A", "IL23R",
                        "CDC42", "FCAR", "IGHA1", "EHMT2", "OX40",
-                       "OX40L", "CD1D")
+                       "OX40L", "CD1D", "CCL17", "TLR3")
 
 
 
