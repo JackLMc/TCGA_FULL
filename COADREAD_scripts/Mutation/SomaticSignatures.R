@@ -20,7 +20,7 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
 load("./R_Data/Mutation_clean.RData")
 rm("mutation_maf") # Don't need this for this analysis, reduce burden by removing
 
-pat_sub <- read.csv("Output/Patient_Subtypes_13_02.csv")[, c("Patient.ID", "Subtype")]
+pat_sub <- read.csv("Output/Patient_Subtypes_09_03.csv")[, c("Patient.ID", "Subtype")]
 
 # Preprocess
 ##Only take SNPs
@@ -114,16 +114,14 @@ w_norm <- t(t(w) / colSums(w))
 sum(as.numeric(w_norm[,1]))
 
 # Plot the NMF
-# plotSignatureMap(sigs_nmf) + ggtitle("Somatic Signatures: NMF - Heatmap")
 pdf("./Figures/Mutation_Spectrum/NMF_Sigs_Contrib.pdf", width = 8, height = 8)
-plotSignatures(sigs_nmf) + 
+SomaticSignatures:: plotSignatures(sigs_nmf) + 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 dev.off()
 
 # plotObservedSpectrum(sigs_nmf) # too many colours
 # plotFittedSpectrum(sigs_nmf) # too many colours
 plotSignatureMap(sigs_nmf)
-
 
 # Order by most contributing
 library(reshape2)
