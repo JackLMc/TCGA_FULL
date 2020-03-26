@@ -24,8 +24,9 @@ WD1 <- WD[, colSums(is.na(WD)) < 300]
 ## Rename to cecum, ascending, hepatic and transverse to right sided, all others to left - Mik et al., 2017 paper
 # levels(WD1$Patient.Primary.Tumor.Site)
 WD1$Cancer_Sided <- ifelse((WD1$Patient.Primary.Tumor.Site == "Cecum" | WD1$Patient.Primary.Tumor.Site == "Ascending Colon" |
-                               WD1$Patient.Primary.Tumor.Site == "Hepatic Flexure" | WD1$Patient.Primary.Tumor.Site == "Transverse Colon"), "Right",
-                                          ifelse((is.na(WD1$Patient.Primary.Tumor.Site)), NA, "Left"))
+                               WD1$Patient.Primary.Tumor.Site == "Hepatic Flexure" | WD1$Patient.Primary.Tumor.Site == "Transverse Colon"), "Right", 
+                           ifelse((WD1$Patient.Primary.Tumor.Site == "Rectum" | WD1$Patient.Primary.Tumor.Site == "Rectosigmoid Junction"), "Rectum", 
+                                          ifelse((is.na(WD1$Patient.Primary.Tumor.Site)), NA, "Left"))) %>% as.factor()
 
 # levels(WD1$Cancer.Type.Detailed)
 WD1$Histological_Type <- ifelse((grepl("Mucinous", WD1$Cancer.Type.Detailed)), "Mucinous Adenocarcinoma", "Adenocarcinoma")
@@ -158,14 +159,68 @@ iR1$Subtype <- relevel(iR1$Subtype, "MSS")
 iR2 <- column_to_rownames(iR1, var = "Patient.ID")
 
 library(nnet)
-test <- multinom(Subtype ~ 
+fit <- multinom(Subtype ~ 
                    Sex + Histological_Type + Stage +
                    Cancer_Sided +
-                   Diagnosis.Age + Vascular.invasion.indicator + Lymph.Node.s..Examined.Number + BMI_group + Patient.s.Vital.Status, data = iR2)
+                   Diagnosis.Age + Vascular.invasion.indicator + Lymph.Node.s..Examined.Number + Patient.s.Vital.Status, data = iR2)
 
-z <- summary(test)$coefficients/summary(test)$standard.errors
-p <- (1 - pnorm(abs(z), 0, 1))*2
+summary(fit)
+z <- summary(fit)$coefficients/summary(fit)$standard.errors
+p <- pnorm(abs(z), lower.tail=FALSE)*2
 p
+
+
+# install.packages("afex")
+# install.packages("car")
+library(afex)
+set_sum_contrasts() # use sum coding, necessary to make type III LR fits valid
+library(car)
+Anova(fit, type = "III")
+
+# install.packages("effects")
+library(effects)
+plot(effect(fit, term = "Stage"), ylab = "Subtype", type = "probability",style = "stacked", colors = rainbow(3))
+plot(effect(fit, term = "Cancer_Sided"), ylab = "Subtype", type = "probability", style = "stacked", colors = rainbow(3))
+
+# install.packages("lsmeans")
+library(lsmeans)
+lsm = lsmeans(fit, ~ Stage|Subtype, mode = "latent")
+cmp = contrast(lsm, method = "pairwise", ref = 1) 
+test = test(cmp, joint = TRUE, by = "contrast") 
+test
+
+
+(0.058 * 0.058) / (0.021 * 0.021)
+
+
+lsmeans(fit, pairwise ~ Stage | Subtype, adjust="tukey", mode = "prob")
+
+
+
+# Practise data
+install.packages("haven")
+library(haven)
+mdata <- read_dta("https://stats.idre.ucla.edu/stat/data/hsbdemo.dta")
+mdata$prog <- factor(mdata$prog)
+mdata$ses <- factor(mdata$ses)
+
+mdata$prog <- relevel(mdata$prog, ref=1)
+
+# Load the package
+library(nnet)
+# Run the model
+model <- multinom(prog ~ ses + write, data=mdata)
+coefs <- coef(model)
+(exp(coefs)-1)*100
+
+library(pscl)
+pR2(model)
+
+####
+
+coef_ <- coef(fit)
+(exp(coef_)-1)*100
+pR2(fit)
 
 
 dcast(multi, Subtype ~ Stage)
