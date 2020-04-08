@@ -17,6 +17,7 @@ rownames(tcga_FH) <- NULL
 tcga_FH$Patient.ID <- toupper(tcga_FH$patient.bcr_patient_barcode)
 tcga_FH$Patient.ID <- gsub("-", ".", tcga_FH$Patient.ID)
 tcga_FH <- tcga_FH[tcga_FH$Patient.ID %in% Patient_list, ]
+
 tcga_FH1 <- tcga_FH[, colnames(tcga_FH) %in% c("Patient.ID", 
                                                "patient.microsatellite_instability_test_results.microsatellite_instability_test_result.mononucleotide_and_dinucleotide_marker_panel_analysis_status"
                                               )]
@@ -39,6 +40,7 @@ tcga_CB <- droplevels(subset(tcga_cBio, Sample.Type == "Primary"))
 
 tcga_clinical <- merge(tcga_CB, tcga_FH1, by = "Patient.ID")
 
+head(tcga_clinical)
 
 # Finds two more patients...
 # Write the data out.

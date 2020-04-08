@@ -13,6 +13,8 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
             "MSS" = "#009E73")
 
 Clin542 <- read.csv("./Output/Clinical_Data_542.csv")
+
+head(Clin542)
 pat_sub <- read.csv("./Output/Patient_Subtypes_09_03.csv")
 WD <- merge(pat_sub, Clin542, by = "Patient.ID")
 
