@@ -30,11 +30,12 @@ library(edgeR)
 # Replenish "x"
 Counts_clean <- cqn_Counts$counts
 
+
 # Make rownames ENTREZID again
+ensembl_DB <- useEnsembl(biomart = "ensembl", dataset = "hsapiens_gene_ensembl", mirror = "useast")
 Gene_Map <- getBM(attributes = c("entrezgene_id", "hgnc_symbol"),
                   filters = "hgnc_symbol", values = rownames(Counts_clean), ensembl_DB)
-
-
+head(Gene_Map) # Might throw warnings if a mirror is down
 
 x <- DGEList(Counts_clean)
 
@@ -52,31 +53,23 @@ x$counts <- x$counts[, colnames(x$counts) %in% pat_sub$Patient.ID] # Only includ
 samplenames <- colnames(x)
 
 # Calculate counts per million, log counts per million
-rownames(x$counts)[grep("TRAC", rownames(x$counts))]
-
-Gene_Map3
-
-
 cpms <- cpm(x)
 lcpm <- cpm(x, log = T)
 
-# Remove lowly expressed transcripts
-dim(x)
-table(rowSums(x$counts==0)==10) # Show me the amount of transcripts that are zero for 10 samples
-CPM_scaling <- min(x$samples$lib.size)/1000000
-cpm_scale <- 6.5/CPM_scaling
-
-keep.exprs <- rowSums(cpms>cpm_scale)>=1 # Genes must count of 6.5 in lowest library
-x <- x[keep.exprs,, keep.lib.sizes = F]
+# # Remove lowly expressed transcripts #### DON'T DO THIS, REMOVES GENES TAHT ARE INCLUDED ####
+# dim(x)
+# table(rowSums(x$counts==0)==10) # Show me the amount of transcripts that are zero for 10 samples
+# CPM_scaling <- min(x$samples$lib.size)/1000000
+# cpm_scale <- 6.5/CPM_scaling
+# 
+# keep.exprs <- rowSums(cpms>cpm_scale)>=1 # Genes must count of 6.5 in lowest library
+# x <- x[keep.exprs,, keep.lib.sizes = F]
 
 # Normalising gene expression
 x <- calcNormFactors(x, method = "TMM")
-x$samples$norm.factors
+# x$samples$norm.factors
 x <- estimateCommonDisp(x)
 x <- estimateTagwiseDisp(x)
-
-
-
 
 # Differential gene expression
 group <- gsub("-", "_", group)
@@ -187,14 +180,20 @@ tryCatch(expr = { library("RCurl")},
 library(qusage)
 
 ## Read in the Genesets
-All_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/msigdb.v7.0.symbols.gmt")
-KEGG_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/c2.cp.kegg.v7.0.symbols.gmt")
-GO_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/c5.all.v7.0.symbols.gmt")
-immuno_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/c7.all.v7.0.symbols.gmt")
-hallmark_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/h.all.v7.0.symbols.gmt")
+# All_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/msigdb.v7.0.symbols.gmt")
+# KEGG_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/c2.cp.kegg.v7.0.symbols.gmt")
+# GO_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/c5.all.v7.0.symbols.gmt")
+# immuno_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/c7.all.v7.0.symbols.gmt")
+# hallmark_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/h.all.v7.0.symbols.gmt")
+#### ENSURE 03/06/09 is MARCHF6 ###
+GoI <- read.csv("./Output/Genesets/Genesets_of_interest.csv", stringsAsFactors = F)
 
-immunome <- read.csv("./Exploratory_Data/Genesets/Cell_Type_Geneset.csv", stringsAsFactors = F)[, c("Parameter", "Hugo_Symbol")]
-imm_list <- split(immunome$Hugo_Symbol, immunome$Parameter)
+GoI1 <- droplevels(subset(GoI, Type_of_data == "CellType"))[, c("CellType", "Symbol")]
+
+imm_list <- split(GoI1$Symbol, GoI1$CellType)
+
+
+GoI1$Symbol[!('%in%'(GoI1$Symbol, rownames(v)))]
 
 ## Filter genesets that appear in only KEGG and GO databases (6103 genesets)
 # filter_gmt <- All_gmt[names(All_gmt) %in% names(KEGG_gmt) | names(All_gmt) %in% names(GO_gmt)]
@@ -202,18 +201,25 @@ imm_list <- split(immunome$Hugo_Symbol, immunome$Parameter)
 
 ## Filter genesets for very small/very big sizes (reduces multiple comparison deficit) (2918 genesets)
 geneset_sizes <- unlist(lapply(imm_list, length))
+geneset_indices <- which(geneset_sizes>=15 & geneset_sizes<200)
+filtered_set <- imm_list[geneset_indices]
+head(filtered_set)
+filtered_set1 <- filtered_set[!'%in%'(names(filtered_set), c("Th17_origin", "SW480 cancer cells", "T cells", "T helper cells", "Cytotoxic cells"))]
+
 
 ## Perform camera analysis on filtered geneset
-idx <- ids2indices(imm_list, id = rownames(v))
-
-contr.matrix
+idx <- ids2indices(filtered_set1, id = rownames(v))
 camera_results <- camera(v, idx, design, contrast = contr.matrix[, "MSI_HvsMSS_hiCIRC"])
 head(camera_results)
 View(camera_results)
 droplevels(subset(camera_results, PValue <= 0.01))
 
 
-camera_results[grepl("REACTIVE_OXYGEN", rownames(camera_results)), ]
+
+
+
+
+
 
 # BiocManager::install("qusage")
 library(qusage)
