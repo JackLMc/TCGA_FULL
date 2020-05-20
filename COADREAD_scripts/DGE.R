@@ -23,7 +23,7 @@ x <- DGEList(Counts_clean)
 # Get groups
 temp <- x$samples %>% 
   rownames_to_column(., "Patient.ID")
-pat_sub <- read.csv("./Output/Patient_Subtypes_13_02.csv")
+pat_sub <- read.csv("./Output/Patient_Subtypes_09_03.csv")
 
 colnames(pat_sub)[colnames(pat_sub) == "Subtype"] <- "group"
 x$samples <- merge(temp[, c("Patient.ID", "lib.size", "norm.factors")], pat_sub[, c("Patient.ID", "group")], by = "Patient.ID") %>%

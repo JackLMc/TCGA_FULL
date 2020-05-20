@@ -50,28 +50,22 @@ Counts <- column_to_rownames(Counts, var = "entrezgene_id")
 
 
 ### CMS prediction of TCGA primary colorectal cancers
-## Need just counts, not cqn normalised counts...
-
-res <- CMScaller(Counts, RNAseq=TRUE, doPlot=TRUE)
-head(res)
+res <- CMScaller(Counts, RNAseq = T, doPlot = T)
 
 CMS_groups <- rownames_to_column(res, var = "Patient.ID")
 CMS_groups <- CMS_groups[, c("Patient.ID", "prediction")]
 colnames(CMS_groups)[colnames(CMS_groups) == "prediction"] <- "CMS"
-head(CMS_groups)
 
 Patient_list <- read.csv("./Output/Patient_Subtypes_09_03.csv")$Patient.ID %>% as.character()
 CMS_groups <- CMS_groups[CMS_groups$Patient.ID %in% Patient_list, ]
 
-write.table("./Output/CMS_groups.txt", x = CMS_groups, quote = F, row.names = F)
+write.csv("./Output/CMS_groups.csv", x = CMS_groups, row.names = F)
 
 
 pat_sub <- read.csv("./Output/Patient_Subtypes_09_03.csv")
 
 ### Camera Gene Set Analysis with CMS informative gene sets
-
 colnames(Counts) %in% pat_sub$Patient.ID
-
 Counts1 <- Counts[, colnames(Counts) %in% levels(pat_sub$Patient.ID)]
 cam <- CMSgsa(emat=Counts1, class=pat_sub$Subtype, RNAseq=T)
 

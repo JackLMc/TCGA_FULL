@@ -231,6 +231,56 @@ for(i in levels(Enrich1$Parameter)){
                    height = 6, width = 6)}
 
 
+# New Th17
+# Fatty acid metabolism
+FAM  <- read.csv("./Exploratory_Data/Genesets/Castro_collated.csv")
+
+FAM_list <- list()
+c <- 1
+for(i in levels(FAM$CellType)){
+  print(i)
+  work <- droplevels(subset(FAM, CellType == i))
+  Genes <- toupper(levels(work$Hugo_Symbol))
+  FAM_list[[i]] <- Genes
+  c <- c + 1
+}
+
+library(GSVA)
+Enrichment_book <- gsva(Ccqn, FAM_list)
+Enrichment_book1 <- Enrichment_book %>% as.data.frame() %>%
+  rownames_to_column(., var = "Geneset") %>%
+  gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
+  spread(., key = "Geneset", value = "Enrich")
+
+
+Enrichment_book1$Patient.ID <- as.factor(Enrichment_book1$Patient.ID)
+Enrich <- merge(pat_sub, Enrichment_book1, by = "Patient.ID")
+
+Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -CIRC_Genes, -Patient.ID, -Subtype)
+Enrich1$Parameter <- as.factor(Enrich1$Parameter)
+head(Enrichment_book1)
+for(i in levels(Enrich1$Parameter)){
+  print(i)
+  work <- droplevels(subset(Enrich1, Parameter == i))
+  temp_plot <- ggplot(work, aes(x = Subtype, y = Enrichment)) +
+    geom_boxplot(alpha = 0.5, width = 0.2) + 
+    geom_violin(aes(Subtype, fill = Subtype),
+                scale = "width", alpha = 0.8) +
+    scale_fill_manual(values = cbcols) +
+    labs(x = "Subtype", y = paste(i, "enrichment score")) +
+    theme_bw() +
+    theme(axis.text = element_text(size = 16)) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(legend.direction = "horizontal", legend.position = "top") + 
+    stat_compare_means(comparisons = my_comparisons,
+                       label = "p.signif", method = "wilcox.test")
+  filen <- paste0(i, ".pdf")
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
+                   path = "./Figures/Gene_Sets/Enrichment/",
+                   height = 6, width = 6)}
+
+
+
 ## Bespoke
 book_list <- list()
 book_list[["SAAs"]] <- c("TLR4", "LY96"#,
@@ -360,11 +410,13 @@ for(i in 1:length(genes_of_interest)){
                    height = 6, width = 6)}
 
 ## Bespoke genes
-FPKM2$SYMBOL[grepl("ND4", FPKM2$SYMBOL)] # Check whether your gene exists in the dataset
-GOI <- droplevels(subset(MA, SYMBOL == "MT-ND4")) 
+head(LongCQN)
 
-GOI$Rank <- rank(GOI$FPKM)
-ggplot(GOI, aes(x = Subtype, y = Rank)) +
+LongCQN$Gene[grepl("SOD2", LongCQN$Gene)] # Check whether your gene exists in the dataset
+GOI <- droplevels(subset(LongCQN, Gene == "NOX1")) 
+
+
+ggplot(GOI, aes(x = Subtype, y = CQN)) +
   geom_boxplot(alpha = 0.5, width = 0.2) + 
   geom_violin(aes(Subtype, fill = Subtype),
               scale = "width", alpha = 0.8) +

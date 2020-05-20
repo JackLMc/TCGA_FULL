@@ -181,10 +181,12 @@ library(qusage)
 
 ## Read in the Genesets
 # All_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/msigdb.v7.0.symbols.gmt")
-# KEGG_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/c2.cp.kegg.v7.0.symbols.gmt")
+KEGG_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/c2.cp.kegg.v7.0.symbols.gmt")
 # GO_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/c5.all.v7.0.symbols.gmt")
 # immuno_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/c7.all.v7.0.symbols.gmt")
-# hallmark_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/h.all.v7.0.symbols.gmt")
+hallmark_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/h.all.v7.0.symbols.gmt")
+
+
 #### ENSURE 03/06/09 is MARCHF6 ###
 GoI <- read.csv("./Output/Genesets/Genesets_of_interest.csv", stringsAsFactors = F)
 
@@ -200,30 +202,38 @@ GoI1$Symbol[!('%in%'(GoI1$Symbol, rownames(v)))]
 # filter_gmt <- All_gmt[names(All_gmt) %in% names(GO_gmt)]
 
 ## Filter genesets for very small/very big sizes (reduces multiple comparison deficit) (2918 genesets)
-geneset_sizes <- unlist(lapply(imm_list, length))
-geneset_indices <- which(geneset_sizes>=15 & geneset_sizes<200)
-filtered_set <- imm_list[geneset_indices]
-head(filtered_set)
+geneset_sizes <- unlist(lapply(KEGG_gmt, length))
+geneset_sizes
+
+geneset_indices <- which(geneset_sizes>=50 & geneset_sizes<200)
+filtered_set <- hallmark_gmt[geneset_indices]
 filtered_set1 <- filtered_set[!'%in%'(names(filtered_set), c("Th17_origin", "SW480 cancer cells", "T cells", "T helper cells", "Cytotoxic cells"))]
 
+hallmark_gmt1 <- hallmark_gmt[!'%in%'(names(hallmark_gmt), c("HALLMARK_TNFA_SIGNALING_VIA_NFKB", "HALLMARK_MITOTIC_SPINDLE",
+                                                             "HALLMARK_MYOGENESIS", "HALLMARK_ESTROGEN_RESPONSE_EARLY",
+                                                             "HALLMARK_ALLOGRAFT_REJECTION", "HALLMARK_ESTROGEN_RESPONSE_LATE",
+                                                             "HALLMARK_HEME_METABOLISM", "HALLMARK_BILE_ACID_METABOLISM",
+                                                             "HALLMARK_SPERMATOGENESIS", "HALLMARK_PANCREAS_BETA_CELLS",
+                                                             "HALLMARK_G2M_CHECKPOINT", "HALLMARK_ANDROGEN_RESPONSE", 
+                                                             "HALLMARK_APICAL_SURFACE", "HALLMARK_XENOBIOTIC_METABOLISM"
+                                                             ))]
 
 ## Perform camera analysis on filtered geneset
-idx <- ids2indices(filtered_set1, id = rownames(v))
+
+
+
+idx <- ids2indices(hallmark_gmt1, id = rownames(v))
 camera_results <- camera(v, idx, design, contrast = contr.matrix[, "MSI_HvsMSS_hiCIRC"])
-head(camera_results)
-View(camera_results)
-droplevels(subset(camera_results, PValue <= 0.01))
 
+## Use the camera_result table?
 
-
-
-
+droplevels(subset(camera_results, FDR > 0.05)) %>% View()
 
 
 
 # BiocManager::install("qusage")
 library(qusage)
-camera_results_a <- camera_results[rownames(camera_results) %in% names(filtered_set),]
+camera_results_a <- camera_results[rownames(camera_results) %in% names(filtered_set1),]
 
 genesets_filtered <- idx
 data_for_gs_analysis <- v
@@ -260,883 +270,96 @@ camera_results_generic_em <- data.frame(rownames(camera_results_a), camera_descr
                                         camera_Phenotype,
                                         camera_genes)
 
-camera_results_file <- "./Data/Genesets/camera_results_generic_hiCIRC_MSI.txt"
+camera_results_file <- "./Output/Genesets/DGE_Cyto/camera_results_generic_hiCIRC_MSI.txt"
 write.table(camera_results_generic_em, file.path(camera_results_file), 
             col.name = T, sep = "\t", row.names = F, quote = F)
 
 
 
 
+# Getting it ready for Cytoscape running...
+
+
+expression_file <- "./Output/Genesets/DGE_Cyto/expression_file.txt"
+exp_fil <- as.data.frame(v$E)
+write.table(exp_fil, file.path(expression_file),
+            col.name = T, sep = "\t", row.names = F, quote = F)
+
+
+#use easy cyRest library to communicate with cytoscape.
+tryCatch(expr = { library(RCy3)}, 
+         error = function(e) { install_github("cytoscape/RCy3")}, finally = library(RCy3))
+
+#defined threshold for GSEA enrichments (need to be strings for cyrest call)
+pvalue_threshold <- "0.05"
+qvalue_threshold <- "0.05"
+
+similarity_threshold <- "0.25"
+similarity_metric <- "JACCARD"
+
+# generic_gmt_file <- file.path(getwd(), gmt_file)
+analysis_name <- "MSI_H_vs_MSS-hiCIRC"
+cur_model_name <- paste("camera", analysis_name, sep="_")
+results_filename <- file.path(getwd(),  camera_results_file)
+
+
+current_network_name <- paste(cur_model_name, pvalue_threshold, qvalue_threshold, sep = "_")
 
 
 
+results_filename <- "/Users/JackMcMurray/OneDrive/UoB/PhD/Projects/6_TCGA_Full/TCGA_FULL/Output/Genesets/DGE_Cyto/camera_results_generic_hiCIRC_MSI.txt"
+expression_filename <- "/Users/JackMcMurray/OneDrive/UoB/PhD/Projects/6_TCGA_Full/TCGA_FULL/Output/Genesets/DGE_Cyto/expression_file.txt"
+generic_gmt_file <- "/Users/JackMcMurray/OneDrive/UoB/PhD/Projects/6_TCGA_Full/TCGA_FULL/Output/Genesets/Genesets_of_interest.csv"
+em_command = paste('enrichmentmap build analysisType=generic',
+                   "gmtFile=", generic_gmt_file,
+                   "pvalue=", pvalue_threshold,
+                   "qvalue=", qvalue_threshold,
+                   "similaritycutoff=", similarity_threshold,
+                   "coefficients=", similarity_metric,
+                   "enrichmentsDataset1=", results_filename,
+                   "expressionDataset1=", expression_filename)
+
+# Above had sep = " "
 
 
 
+#enrichment map command will return the suid of newly created network.
+# install.packages("BiocManager")
+# BiocManager::install("RCy3")
+library(RCy3)
+response <- commandsGET(em_command)
 
-
-
-
-
-
-
-
-
-
-############################
-
-
-CD27LO.vs.Naive <- topTreat(tfit, coef = 6, n = Inf)
-CD27LO.vs.VD2 <- topTreat(tfit, coef = 7, n = Inf)
-
-EMRA.vs.Naive <- topTreat(tfit, coef = 8, n = Inf)
-# write.csv(EMRA.vs.Naive, file = "./Bulk/Output/EMRA.vs.Naive.csv")
-
-EMRA.vs.VD2 <- topTreat(tfit, coef = 9, n = Inf)
-
-Naive.vs.VD2 <- topTreat(tfit, coef = 10, n = Inf)
-
-
-######### AME
-sig <- droplevels(subset(CD27LO.vs.CD27HI, adj.P.Val <= 0.01))
-sig$Direction <- as.factor(ifelse((sig$logFC < 0), "CD27HI", "CD27LO"))
-
-CD27HI <- droplevels(subset(sig, Direction == "CD27HI"))
-genes_27HI <- CD27HI$ENTREZID
-
-CD27LO <- droplevels(subset(sig, Direction == "CD27LO"))
-genes_27LO <- CD27LO$ENTREZID
-
-library(biomaRt)
-
-mart <- useDataset("hsapiens_gene_ensembl", useMart("ensembl"))
-
-# CD27HI
-CD27HI_genes <- getBM(attributes = c("transcript_start", "transcript_end", "chromosome_name", "ensembl_gene_id"),
-                      filters = "entrezgene", values = genes_27HI, mart = mart)
-
-
-CD27HI_genes$chromosome_name_right <- paste("chr", CD27HI_genes$chromosome_name, sep = "") 
-CD27HI_genes$chromosome_name_right <- as.factor(CD27HI_genes$chromosome_name_right)
-CD27HI_genes1 <- CD27HI_genes[!grepl("chrCHR", CD27HI_genes$chromosome_name_right),]
-
-CD27HI_ensembl1 <- CD27HI_genes1[!duplicated(CD27HI_genes1$ensembl_gene_id), ]
-
-CD27HI_ensembl1$ensembl_gene_id <- as.factor(CD27HI_ensembl1$ensembl_gene_id)
-
-CD27HI_ensembl2 <- data.frame(ensembl_gene = character(),
-                              transcript_start = double(),
-                              transcript_end= double(),
-                              chromosome_name_right = character(),
-                              stringsAsFactors = F)
-c <- 1
-for(i in levels(CD27HI_ensembl1$ensembl_gene_id)){
-  print(i)
-  working <- droplevels(subset(CD27HI_ensembl1, ensembl_gene_id == i))
-  avg_start <- mean(working$transcript_start)
-  avg_end <- mean(working$transcript_end)
-  working$chromosome_name_right <- as.factor(working$chromosome_name_right)
-  CD27HI_ensembl2[c, "ensembl_gene"] <- i
-  CD27HI_ensembl2[c, "transcript_start"] <- avg_start
-  CD27HI_ensembl2[c, "transcript_end"] <- avg_end
-  CD27HI_ensembl2[c, "chromosome_name_right"] <- as.character(levels(working$chromosome_name_right))
-  c <- c + 1
+current_network_suid <- 0
+#enrichment map command will return the suid of newly created network unless it Failed.  
+#If it failed it will contain the word failed
+if(grepl(pattern="Failed", response)){
+  paste(response)
+} else {
+  current_network_suid <- response
 }
+response <- renameNetwork(current_network_name, as.numeric(current_network_suid))
 
-CD27HI_ensembl2$transcript_start_ext <- CD27HI_ensembl2$transcript_start - 2000
-CD27HI_ensembl2$transcript_end_ext <- CD27HI_ensembl2$transcript_end + 1000
-library(GenomicRanges)
 
-gr_27HI <- GRanges(seqnames = Rle(CD27HI_ensembl2$chromosome_name_right),
-                   ranges = IRanges(CD27HI_ensembl2$transcript_start_ext,
-                                    end = CD27HI_ensembl2$transcript_end_ext),
-                   strand = Rle(strand(c(rep("*", length(CD27HI_ensembl2$chromosome_name_right))))),
-                   names = CD27HI_ensembl2$ensembl_gene)
 
-df_27HI <- data.frame(seqnames = seqnames(gr_27HI),
-                      starts = start(gr_27HI)-1,
-                      ends = end(gr_27HI),
-                      names = gr_27HI$names
-)
+### Barcode plot
+barcodeplot(tfit$t[, "MSI_HvsMSS_hiCIRC"], index = idx$Th17_extend, main = ".")
+barcodeplot(tfit$t[, "MSI_HvsMSS_hiCIRC"], index = idx$`B cells`, main = ".")
+barcodeplot(tfit$t[, "MSI_HvsMSS_hiCIRC"], index = idx$`Mast cells`, main = ".")
 
-df_27HI1 <- droplevels(subset(df_27HI, names != "ENSG00000189283"))
+tfit$t
 
-subset(df_27HI, starts == 63637707)
+heatmap.2(tfit$t[, "MSI_HvsMSS_hiCIRC"][idx$Th17_extend])
 
-write.table(df_27HI1, file = "Bulk/Output/CD27HI_list1.bed", quote = F, sep = "\t", row.names = F, col.names = F)
+heatmap.2()
 
 
-library(Homo.sapiens)
-promoters(genes(TxDb.Hsapiens.UCSC.hg19.knownGene), 2000, -2000)
 
 
-# CD27LO
-CD27LO_genes <- getBM(attributes = c("transcript_start", "transcript_end", "chromosome_name", "ensembl_gene_id"),
-                      filters = "entrezgene", values = genes_27LO, mart = mart)
 
 
-CD27LO_genes$chromosome_name_right <- paste("chr", CD27LO_genes$chromosome_name, sep = "") 
-CD27LO_genes$chromosome_name_right <- as.factor(CD27LO_genes$chromosome_name_right)
-CD27LO_genes1 <- CD27LO_genes[!grepl("chrCHR", CD27LO_genes$chromosome_name_right),]
 
-CD27LO_ensembl1 <- CD27LO_genes1[!duplicated(CD27LO_genes1$ensembl_gene_id), ]
 
-CD27LO_ensembl1$ensembl_gene_id <- as.factor(CD27LO_ensembl1$ensembl_gene_id)
 
-CD27LO_ensembl2 <- data.frame(ensembl_gene = character(),
-                              transcript_start = double(),
-                              transcript_end= double(),
-                              chromosome_name_right = character(),
-                              stringsAsFactors = F)
-c <- 1
-for(i in levels(CD27LO_ensembl1$ensembl_gene_id)){
-  print(i)
-  working <- droplevels(subset(CD27LO_ensembl1, ensembl_gene_id == i))
-  avg_start <- mean(working$transcript_start)
-  avg_end <- mean(working$transcript_end)
-  working$chromosome_name_right <- as.factor(working$chromosome_name_right)
-  CD27LO_ensembl2[c, "ensembl_gene"] <- i
-  CD27LO_ensembl2[c, "transcript_start"] <- avg_start
-  CD27LO_ensembl2[c, "transcript_end"] <- avg_end
-  CD27LO_ensembl2[c, "chromosome_name_right"] <- as.character(levels(working$chromosome_name_right))
-  c <- c + 1
-}
 
-CD27LO_ensembl2$transcript_start_ext <- CD27LO_ensembl2$transcript_start - 2000
-CD27LO_ensembl2$transcript_end_ext <- CD27LO_ensembl2$transcript_end + 1000
-library(GenomicRanges)
 
-gr_27LO <- GRanges(seqnames = Rle(CD27LO_ensembl2$chromosome_name_right),
-                   ranges = IRanges(CD27LO_ensembl2$transcript_start_ext,
-                                    end = CD27LO_ensembl2$transcript_end_ext),
-                   strand = Rle(strand(c(rep("*", length(CD27LO_ensembl2$chromosome_name_right))))),
-                   names = CD27LO_ensembl2$ensembl_gene)
 
-df_27LO <- data.frame(seqnames = seqnames(gr_27LO),
-                      starts = start(gr_27LO)-1,
-                      ends = end(gr_27LO),
-                      names = gr_27LO$names
-)
-
-write.table(df_27LO, file = "Bulk/Output/CD27LO_list.bed", quote = F, sep = "\t", row.names = F, col.names = F)
-
-### end ####
-
-length(df_27LO$seqnames)
-
-write.table(EMRA.vs.Naive, "Bulk/Output/EMRA_vs_Naive_DGE.txt", sep = "\t", quote = F, row.names = F)
-
-# These are the outputs of EdgeR!!
-# head(CD27LO.vs.EMRA)
-# head(CD27HI.vs.VD2)
-# head(CD27HI.vs.EMRA)
-# head(CD27HI.vs.Naive)
-
-## Highlight this for notable genes... (CD28 one example)
-pdf("Bulk/Figures/Volcano_Bulk.pdf")
-plotMD(efit, column = 1, status = dt[,1], main = colnames(tfit)[1], 
-       xlim = c(-2,13), col = c("#009E73", "#999999"))
-legend("topright", fill = c("#999999", "black", "#009E73"),
-       legend = c("VD1 CD27LO", "No Change", "VD1 CD27HI"))
-
-dev.off()
-glMDPlot(tfit, coef = 1, status = dt, main = colnames(efit)[1],
-         side.main = "ENTREZID", counts = x$counts, groups = group, launch = T)
-
-# Heatmaps
-## Change the top genes, for various heatmaps looking at different sets
-library(gplots)
-
-# CD27HI versus CD27LO
-CD27LO.vs.CD27HI1 <- CD27LO.vs.CD27HI[!grepl("^TRAV", CD27LO.vs.CD27HI$SYMBOL), ]
-CD27LO.vs.CD27HI2 <- CD27LO.vs.CD27HI1[!grepl("^TRBV", CD27LO.vs.CD27HI1$SYMBOL), ]
-CD27LO.vs.CD27HI2 <- Take_Sigs(CD27LO.vs.CD27HI2)
-
-CD27LO.vs.CD27HI.topgenes <- CD27LO.vs.CD27HI2$ENTREZID[1:100]
-# i <- which(v$genes$ENTREZID %in% CD27LO.vs.CD27HI.topgenes)
-# mycol <- colorpanel(1000,"blue","white","red")
-# heatmap.2(v$E[i,], scale = "row",
-#           labRow = v$genes$SYMBOL[i], labCol = group, 
-#           col = mycol, trace = "none", density.info = "none", 
-#           margin = c(8,6), lhei = c(2,10), #dendrogram = "column",
-#           main = "CD27LO vs CD27HI")
-
-# gaining a dataframe with the differentially expressed
-# this <- CD27LO.vs.CD27HI2[1:100, c("SYMBOL", "logFC", "adj.P.Val")]
-# this$Group <- ifelse((this$logFC<0), "CD27HI", "CD27LO") # THIS WILL CHANGE ONCE YOU SET THE LFC = 2
-# that <- droplevels(subset(this, Group == "CD27HI"))
-# 
-# CD27LO_CD27HI_DEgenes <- this
-# writeCsvO(CD27LO_CD27HI_DEgenes)
-
-# CD27HI versus EMRA
-CD27HI.vs.EMRA1 <- CD27HI.vs.EMRA[!grepl("^TRAV", CD27HI.vs.EMRA$SYMBOL),]
-CD27HI.vs.EMRA2 <- CD27HI.vs.EMRA1[!grepl("^TRBV", CD27HI.vs.EMRA1$SYMBOL),]
-CD27HI.vs.EMRA2 <- Take_Sigs(CD27HI.vs.EMRA2)
-
-CD27HI.vs.EMRA.topgenes <- CD27HI.vs.EMRA2$ENTREZID[1:100]
-# i <- which(v$genes$ENTREZID %in% CD27HI.vs.EMRA.topgenes)
-# mycol <- colorpanel(1000,"blue","white","red")
-# heatmap.2(v$E[i,], scale = "row",
-#           labRow = v$genes$SYMBOL[i], labCol = group, 
-#           col = mycol, trace = "none", density.info = "none", 
-#           margin = c(8,6), lhei = c(2,10), #dendrogram = "column", 
-#           main = "CD27HI vs EMRA")
-## gaining a dataframe with the differentially expressed
-# this <- CD27HI.vs.EMRA2[1:100, c("SYMBOL", "logFC", "adj.P.Val")]
-# this$Group <- ifelse((this$logFC<0), "EMRA", "CD27HI")
-# 
-# CD27HI_EMRA_DEgenes <- this
-# writeCsvO(CD27HI_EMRA_DEgenes)
-
-# CD27HI versus Naive
-CD27HI.vs.Naive1 <- CD27HI.vs.Naive[!grepl("^TRAV", CD27HI.vs.Naive$SYMBOL),]
-CD27HI.vs.Naive2 <- CD27HI.vs.Naive1[!grepl("^TRBV", CD27HI.vs.Naive1$SYMBOL),]
-CD27HI.vs.Naive2 <- Take_Sigs(CD27HI.vs.Naive2)
-
-CD27HI.vs.Naive.topgenes <- CD27HI.vs.Naive2$ENTREZID[1:100]
-# i <- which(v$genes$ENTREZID %in% CD27HI.vs.Naive.topgenes)
-# 
-# mycol <- colorpanel(1000,"blue","white","red")
-# heatmap.2(v$E[i,], scale = "row",
-#           labRow = v$genes$SYMBOL[i], labCol = group, 
-#           col = mycol, trace = "none", density.info = "none", 
-#           margin = c(8,6), lhei = c(2,10), #dendrogram = "column",
-#           main = "CD27HI vs Naive")
-
-## gaining a dataframe with the differentially expressed
-# this <- CD27HI.vs.Naive2[1:100, c("SYMBOL", "logFC", "adj.P.Val")]
-# this$Group <- ifelse((this$logFC<0), "Naive", "CD27HI")
-# CD27HI_Naive_DEgenes <- this
-# writeCsvO(CD27HI_Naive_DEgenes)
-
-
-# CD27HI versus VD2
-CD27HI.vs.VD21 <- CD27HI.vs.VD2[!grepl("^TRAV", CD27HI.vs.VD2$SYMBOL),]
-CD27HI.vs.VD22 <- CD27HI.vs.VD21[!grepl("^TRBV", CD27HI.vs.VD21$SYMBOL),]
-CD27HI.vs.VD22 <- Take_Sigs(CD27HI.vs.VD22)
-
-CD27HI.vs.VD2.topgenes <- CD27HI.vs.VD22$ENTREZID[1:100]
-# i <- which(v$genes$ENTREZID %in% CD27HI.vs.VD2.topgenes)
-# mycol <- colorpanel(1000,"blue","white","red")
-# heatmap.2(v$E[i,], scale = "row",
-#           labRow = v$genes$SYMBOL[i], labCol = group, 
-#           col = mycol, trace = "none", density.info = "none", 
-#           margin = c(8,6), lhei = c(2,10), #dendrogram = "column", 
-#           main = "CD27HI vs VD2")
-
-## gaining a dataframe with the differentially expressed
-# this <- CD27HI.vs.VD22[1:100, c("SYMBOL", "logFC", "adj.P.Val")]
-# this$Group <- ifelse((this$logFC<0), "VD2", "CD27HI")
-# CD27HI_VD2_DEgenes <- this
-# writeCsvO(CD27HI_VD2_DEgenes)
-
-
-# CD27LO versus VD2
-CD27LO.vs.VD21 <- CD27LO.vs.VD2[!grepl("^TRAV", CD27LO.vs.VD2$SYMBOL),]
-CD27LO.vs.VD22 <- CD27LO.vs.VD21[!grepl("^TRBV", CD27LO.vs.VD21$SYMBOL),]
-CD27LO.vs.VD22 <- Take_Sigs(CD27LO.vs.VD22)
-
-CD27LO.vs.VD2.topgenes <- CD27LO.vs.VD22$ENTREZID[1:100]
-# i <- which(v$genes$ENTREZID %in% CD27LO.vs.VD2.topgenes)
-# mycol <- colorpanel(1000,"blue","white","red")
-# heatmap.2(v$E[i,], scale = "row",
-#           labRow = v$genes$SYMBOL[i], labCol = group, 
-#           col = mycol, trace = "none", density.info = "none", 
-#           margin = c(8,6), lhei = c(2,10), #dendrogram = "column",
-#           main = "CD27LO vs VD2")
-
-## gaining a dataframe with the differentially expressed
-# this <- CD27LO.vs.VD22[1:100, c("SYMBOL", "logFC", "adj.P.Val")]
-# this$Group <- ifelse((this$logFC<0), "VD2", "CD27LO")
-# CD27LO_VD2_DEgenes <- this
-# writeCsvO(CD27LO_VD2_DEgenes)
-
-
-# CD27LO versus EMRA
-CD27LO.vs.EMRA1 <- CD27LO.vs.EMRA[!grepl("^TRAV", CD27LO.vs.EMRA$SYMBOL),]
-CD27LO.vs.EMRA2 <- CD27LO.vs.EMRA1[!grepl("^TRBV", CD27LO.vs.EMRA1$SYMBOL),]
-CD27LO.vs.EMRA2 <- Take_Sigs(CD27LO.vs.EMRA2)
-
-CD27LO.vs.EMRA.topgenes <- CD27LO.vs.EMRA2$ENTREZID[1:100]
-# i <- which(v$genes$ENTREZID %in% CD27LO.vs.EMRA.topgenes)
-# mycol <- colorpanel(1000,"blue","white","red")
-# heatmap.2(v$E[i,], scale = "row",
-#           labRow = v$genes$SYMBOL[i], labCol = group, 
-#           col = mycol, trace = "none", density.info = "none", 
-#           margin = c(8,6), lhei = c(2,10), #dendrogram = "column",
-#           main = "CD27LO vs EMRA")
-
-## gaining a dataframe with the differentially expressed
-# this <- CD27LO.vs.EMRA2[1:100, c("SYMBOL", "logFC", "adj.P.Val")]
-# this$Group <- ifelse((this$logFC<0), "EMRA", "CD27LO")
-# CD27LO_EMRA_DEgenes <- this
-# writeCsvO(CD27LO_EMRA_DEgenes)
-
-
-# CD27LO versus Naive
-CD27LO.vs.Naive1 <- CD27LO.vs.Naive[!grepl("^TRAV", CD27LO.vs.Naive$SYMBOL),]
-CD27LO.vs.Naive2 <- CD27LO.vs.Naive1[!grepl("^TRBV", CD27LO.vs.Naive1$SYMBOL),]
-CD27LO.vs.Naive2 <- Take_Sigs(CD27LO.vs.Naive2)
-
-CD27LO.vs.Naive.topgenes <- CD27LO.vs.Naive2$ENTREZID[1:100]
-# i <- which(v$genes$ENTREZID %in% CD27LO.vs.Naive.topgenes)
-# mycol <- colorpanel(1000,"blue","white","red")
-# heatmap.2(v$E[i,], scale = "row",
-#           labRow = v$genes$SYMBOL[i], labCol = group, 
-#           col = mycol, trace = "none", density.info = "none", 
-#           margin = c(8,6), lhei = c(2,10), #dendrogram = "column", 
-#           main = "CD27LO vs Naive")
-
-## gaining a dataframe with the differentially expressed
-# this <- CD27LO.vs.Naive2[1:100, c("SYMBOL", "logFC", "adj.P.Val")]
-# this$Group <- ifelse((this$logFC<0), "Naive", "CD27LO")
-# CD27LO_Naive_DEgenes <- this
-# writeCsvO(CD27LO_Naive_DEgenes)
-
-
-# EMRA versus Naive
-EMRA.vs.Naive1 <- EMRA.vs.Naive[!grepl("^TRAV", EMRA.vs.Naive$SYMBOL),]
-EMRA.vs.Naive2 <- EMRA.vs.Naive1[!grepl("^TRBV", EMRA.vs.Naive1$SYMBOL),]
-EMRA.vs.Naive2 <- Take_Sigs(EMRA.vs.Naive2)
-
-EMRA.vs.Naive.topgenes <- EMRA.vs.Naive2$ENTREZID[1:100]
-# i <- which(v$genes$ENTREZID %in% EMRA.vs.Naive.topgenes)
-# mycol <- colorpanel(1000,"blue","white","red")
-# heatmap.2(v$E[i,], scale = "row",
-#           labRow = v$genes$SYMBOL[i], labCol = group, 
-#           col = mycol, trace = "none", density.info = "none", 
-#           margin = c(8,6), lhei = c(2,10), #dendrogram = "column", 
-#           main = "EMRA vs Naive")
-
-## gaining a dataframe with the differentially expressed
-# this <- EMRA.vs.Naive2[1:100, c("SYMBOL", "logFC", "adj.P.Val")]
-# this$Group <- ifelse((this$logFC<0), "Naive", "EMRA")
-# EMRA_Naive_DEgenes <- this
-# writeCsvO(EMRA_Naive_DEgenes)
-
-
-# EMRA versus VD2
-EMRA.vs.VD21 <- EMRA.vs.VD2[!grepl("^TRAV", EMRA.vs.VD2$SYMBOL),]
-EMRA.vs.VD22 <- EMRA.vs.VD21[!grepl("^TRBV", EMRA.vs.VD21$SYMBOL),]
-EMRA.vs.VD22 <- Take_Sigs(EMRA.vs.VD22)
-
-EMRA.vs.VD2.topgenes <- EMRA.vs.VD22$ENTREZID[1:100]
-# i <- which(v$genes$ENTREZID %in% EMRA.vs.VD2.topgenes)
-# mycol <- colorpanel(1000,"blue","white","red")
-# heatmap.2(v$E[i,], scale = "row",
-#           labRow = v$genes$SYMBOL[i], labCol = group, 
-#           col = mycol, trace = "none", density.info = "none", 
-#           margin = c(8,6), lhei = c(2,10), #dendrogram = "column", 
-#           main = "EMRA vs VD2")
-
-## gaining a dataframe with the differentially expressed
-# this <- EMRA.vs.VD22[1:100, c("SYMBOL", "logFC", "adj.P.Val")]
-# this$Group <- ifelse((this$logFC<0), "VD2", "EMRA")
-# EMRA_VD2_DEgenes <- this
-# writeCsvO(EMRA_VD2_DEgenes)
-
-
-# Naive versus VD2
-Naive.vs.VD21 <- Naive.vs.VD2[!grepl("^TRAV", Naive.vs.VD2$SYMBOL),]
-Naive.vs.VD22 <- Naive.vs.VD21[!grepl("^TRBV", Naive.vs.VD21$SYMBOL),]
-Naive.vs.VD22 <- Take_Sigs(Naive.vs.VD22)
-
-Naive.vs.VD2.topgenes <- Naive.vs.VD22$ENTREZID[1:100]
-# i <- which(v$genes$ENTREZID %in% Naive.vs.VD2.topgenes)
-# mycol <- colorpanel(1000,"blue","white","red")
-# heatmap.2(v$E[i,], scale = "row",
-#           labRow = v$genes$SYMBOL[i], labCol = group, 
-#           col = mycol, trace = "none", density.info = "none", 
-#           margin = c(8,6), lhei = c(2,10), #dendrogram = "column", 
-#           main = "Naive vs VD2")
-
-## gaining a dataframe with the differentially expressed
-# this <- Naive.vs.VD22[1:100, c("SYMBOL", "logFC", "adj.P.Val")]
-# this$Group <- ifelse((this$logFC<0), "VD2", "Naive")
-# Naive_VD2_DEgenes <- this
-# writeCsvO(Naive_VD2_DEgenes)
-
-
-# Shared top 100 DE genes
-k <- which(CD27LO.vs.CD27HI.topgenes %in% EMRA.vs.Naive.topgenes)
-j <- CD27LO.vs.CD27HI.topgenes[k]
-i <- which(v1$genes$ENTREZID %in% j)
-mycol <- colorpanel(1000,"blue","white","red")
-
-col.cell1 <- c("#56B4E9","#E69F00","#009E73","#999999")[v1$targets$group]
-data.frame(v1$targets$group, col.cell1)
-
-# png(filename = "/Users/JackMcMurray/OneDrive/UoB/PhD/Projects/GammaDelta/Bulk/Figures/Paper/Shared_top100_DEgenes.png",
-#     width = 300, height = 300, units = "mm", res = 300)
-heatmap.2(v1$E[i,], scale = "row",
-          labRow = v1$genes$SYMBOL[i], labCol = group1, 
-          col = mycol, trace = "none", density.info = "none", 
-          margin = c(8,6), lhei = c(2,10), ColSideColors = col.cell1)
-par(xpd = T)
-legend(x = 0.87, y = 1.05, 
-       fill = c("#999999", "#56B4E9",
-                "#E69F00", "#009E73"),
-       legend = levels(v1$targets$group))
-# dev.off()
-
-
-# # Check other way for %in% (same)
-# k <- which(EMRA.vs.Naive.topgenes  %in% CD27LO.vs.CD27HI.topgenes)
-# j <- EMRA.vs.Naive.topgenes[k]
-# i <- which(v1$genes$ENTREZID %in% j)
-# mycol <- colorpanel(1000,"blue","white","red")
-# heatmap.2(v1$E[i,], scale = "row",
-#           labRow = v1$genes$SYMBOL[i], labCol = group1, 
-#           col = mycol, trace = "none", density.info = "none", 
-#           margin = c(8,6), lhei = c(2,10), #dendrogram = "column",
-#           main = "Shared top 100 DE genes (Naive v Effectors)")
-
-
-
-# Find top 10 genes in all combinations
-# colnames(contr.matrix)
-# 
-# this <- as.vector(rbind(CD27LO.vs.CD27HI2$ENTREZID[1:25], 
-#                         CD27HI.vs.EMRA2$ENTREZID[1:25], 
-#                         CD27HI.vs.Naive2$ENTREZID[1:25],
-#                         CD27HI.vs.Naive2$ENTREZID[1:25],
-#                         CD27HI.vs.VD22$ENTREZID[1:25],
-#                         CD27LO.vs.EMRA2$ENTREZID[1:25],
-#                         CD27LO.vs.Naive2$ENTREZID[1:25],
-#                         CD27LO.vs.VD22$ENTREZID[1:25],
-#                         EMRA.vs.Naive2$ENTREZID[1:25],
-#                         EMRA.vs.VD22$ENTREZID[1:25],
-#                         Naive.vs.VD22$ENTREZID[1:25]))
-# this <- this[!duplicated(this)]
-# 
-# i <- which(v$genes$ENTREZID %in% this)
-# mycol <- colorpanel(1000,"blue","white","red")
-# heatmap.2(v$E[i,], scale = "row",
-#           labRow = v$genes$SYMBOL[i], labCol = group, 
-#           col = mycol, trace = "none", density.info = "none", 
-#           margin = c(8,6), lhei = c(2,10), #dendrogram = "column", 
-#           main = "Top 20 DE genes across all populations")
-# length(this)
-
-#### Write the common genes
-
-
-
-# Geneset Enrichment Analysis
-CD27LO.vs.CD27HI.topgenes
-
-# Hallmark_genesets
-load("~/OneDrive/UoB/PhD/Projects/GammaDelta/Bulk/RData_Objects/Hallmark_genesets.rdata")
-idx <- ids2indices(Hs.H, id = rownames(v))
-cam.CD27LO.vs.CD27HI <- camera(v, idx, design, contrast = contr.matrix[, "CD27LOvsCD27HI"])
-head(cam.CD27LO.vs.CD27HI, 5)
-
-sig.CD27LO.vs.CD27HI <- droplevels(subset(cam.CD27LO.vs.CD27HI, FDR <= 0.01))
-sig.CD27LO.vs.CD27HI
-
-cam.EMRA.vs.Naive <- camera(v, idx, design, contrast = contr.matrix[, "EMRAvsNaive"])
-head(cam.EMRA.vs.Naive, 5)
-sig.EMRA.vs.Naive <- droplevels(subset(cam.EMRA.vs.Naive, FDR <= 0.01))
-sig.EMRA.vs.Naive
-
-
-
-
-length(Hs.H[["HALLMARK_OXIDATIVE_PHOSPHORYLATION"]])
-
-
-# KEGG
-load("~/OneDrive/UoB/PhD/Projects/GammaDelta/Bulk/RData_Objects/kegg_human.rdata")
-
-## Geneset enrichment
-idx <- ids2indices(kegg_human, id = rownames(v))
-cam.CD27LO.vs.CD27HI <- camera(v, idx, design, contrast = contr.matrix[, "CD27LOvsCD27HI"])
-head(cam.CD27LO.vs.CD27HI, 5)
-sig.CD27LO.vs.CD27HI <- droplevels(subset(cam.CD27LO.vs.CD27HI, FDR <= 0.05))
-KEGG_GD <- rownames_to_column(sig.CD27LO.vs.CD27HI, var = "KEGG_Pathway")
-KEGG_GD1 <- KEGG_GD[(KEGG_GD$KEGG_Pathway %in% KEGG_CD8$KEGG_Pathway), ]
-
-
-head(KEGG_GD)
-KEGG_GD$Oneminus <- 1 - KEGG_GD$FDR
-
-
-p <- ggplot(KEGG_GD, aes(x = KEGG_Pathway, y = Oneminus)) +
-  geom_bar(stat = "identity") + coord_flip()
-p
-
-kegg_sizes<- as.data.frame(lengths(kegg_human)) %>% rownames_to_column(., var = "kegg_pathway")
-colnames(kegg_sizes) <- c("KEGG_Pathway", "Size")
-head(kegg_sizes)
-GD_K <- merge(KEGG_GD, kegg_sizes, by = "KEGG_Pathway")
-GD_K$Num <- GD_K$NGenes/GD_K$Size
-
-
-Comparison <- "GD"
-KEGG_GD2 <- cbind(KEGG_GD, Comparison)
-KEGG_GD2
-
-idx <- ids2indices(kegg_human, id = rownames(v))
-cam.EMRA.vs.Naive <- camera(v, idx, design, contrast = contr.matrix[, "EMRAvsNaive"])
-head(cam.EMRA.vs.Naive, 5)
-sig.EMRA.vs.Naive <- droplevels(subset(cam.EMRA.vs.Naive, FDR <= 0.01))
-KEGG_CD8 <- rownames_to_column(sig.EMRA.vs.Naive, var = "KEGG_Pathway")
-Comparison <- "CD8"
-KEGG_CD8a <- cbind(KEGG_CD8, Comparison)
-
-
-idx <- ids2indices(kegg_human, id = rownames(v))
-cam.EMRA.vs.Naive <- camera(v, idx, design, contrast = contr.matrix[, "CD27LOvsNaive"])
-head(cam.EMRA.vs.Naive, 5)
-sig.EMRA.vs.Naive <- droplevels(subset(cam.EMRA.vs.Naive, FDR <= 0.01))
-KEGG_CD8 <- rownames_to_column(sig.EMRA.vs.Naive, var = "KEGG_Pathway")
-Comparison <- "CD8"
-KEGG_CD8a <- cbind(KEGG_CD8, Comparison)
-
-
-
-rbind(KEGG_GD2, KEGG_CD8a)
-
-KEGG <- rbind(KEGG_CD8a, KEGG_GD2)
-
-KEGG$FDR_Dir <- ifelse((KEGG$Direction == "Down"), KEGG$FDR * -1, KEGG$FDR * 1)
-
-KEGG1 <- KEGG[, c("KEGG_Pathway", "Comparison", "FDR_Dir")]
-
-writeCsvO(KEGG1)
-
-KEGG2 <- spread(KEGG1, key = "KEGG_Pathway", value = "FDR_Dir")
-
-KEGG3 <- KEGG2 %>% remove_rownames %>% column_to_rownames(var = "Comparison")
-
-heatmap.2(t(as.matrix(KEGG3)), col = mycol, trace = "none", density.info = "none", scale = "row"
-)
-mycol <- colorpanel(1000,"blue","white","red")
-
-mycol
-
-
-
-writeCsvO(try)
-head(try)
-
-thesePath <- try$KEGG_Pathway
-
-
-
-
-
-
-
-
-this <- as.matrix(kegg_human)
-idx <- ids2indices(kegg_human, id = rownames(v))
-cam.CD27LO.vs.EMRA <- camera(v, idx, design, contrast = contr.matrix[, "CD27LOvsEMRA"])
-sig.CD27LO.vs.EMRA <- droplevels(subset(cam.CD27LO.vs.EMRA, FDR <= 0.01))
-
-
-idx <- ids2indices(kegg_human, id = rownames(v))
-cam.CD27HI.vs.Naive <- camera(v, idx, design, contrast = contr.matrix[, "CD27HIvsNaive"])
-sig.CD27HI.vs.Naive <- droplevels(subset(cam.CD27HI.vs.Naive, FDR <= 0.01))
-
-head(cam.CD27HI.vs.Naive, 5)
-
-View(contr.matrix)
-par(mfrow = c(1,1))
-barcodeplot(efit$t[, 1], index = idx$`hsa04650 Natural killer cell mediated cytotoxicity`, main = "Natural killer cell mediated cytotoxicity", labels = c("VD1.CD27HI", "VD1.CD27LO"))
-
-
-
-
-#### Less Interesting Genesets ####
-## GO_genesets
-load("~/OneDrive/UoB/PhD/Projects/GammaDelta/Bulk/RData_Objects/GO_genesets.rdata")
-
-## Remove genesets over or equal to 300 length and below 10 genes
-GO_sizes<- as.data.frame(lengths(Hs.c5)) %>% rownames_to_column(., var = "GO_pathway")
-colnames(GO_sizes) <- c("GO_Pathway", "Size")
-remove_these <- droplevels(subset(GO_sizes, Size >= 300 & Size <= 10))$GO_Pathway
-isNameInIndex <- names(Hs.c5) %in% remove_these
-GO_terms <- Hs.c5[!isNameInIndex]
-
-
-idx <- ids2indices(GO_terms, id = rownames(v))
-camera_results <- camera(v, idx, design, contrast = contr.matrix[, "CD27LOvsCD27HI"])
-head(camera_results, 5)
-sig.CD27LO.vs.CD27HI <- droplevels(subset(camera_results, FDR <= 0.001))
-GO_GD <- rownames_to_column(sig.CD27LO.vs.CD27HI, var = "GO_Pathway")
-
-
-GO_sizes <- as.data.frame(lengths(Hs.c5)) %>% rownames_to_column(., var = "GO_pathway")
-colnames(GO_sizes) <- c("GO_Pathway", "Size")
-head(GO_sizes)
-GD_G <- merge(GO_GD, GO_sizes, by = "GO_Pathway")
-head(GD_G)
-
-dim(GD_G)
-
-GD_G$Num <- GD_G$NGenes/GD_G$Size
-head(GD_G)
-
-GD_G
-
-# ord_GD_GO <- arrange(GD_G, FDR)
-# ord_GD_GO$min_log10_FDR <- -log10(ord_GD_GO$FDR)
-# 
-# head(ord_GD_GO)
-# p <- ggplot(ord_GD_GO, aes(x = GO_Pathway, y = min_log10_FDR)) +
-#   geom_bar(stat = "identity") 
-# 
-# p
-# ?sec_axis
-# Comparison <- "GD"
-# KEGG_GD2 <- cbind(KEGG_GD, Comparison)
-# KEGG_GD2
-
-cam.EMRA.vs.Naive <- camera(v, idx, design, contrast = contr.matrix[, "EMRAvsNaive"])
-head(cam.EMRA.vs.Naive, 5)
-sig.EMRA.vs.Naive <- droplevels(subset(cam.EMRA.vs.Naive, FDR <= 0.001))
-GO_CD8 <- rownames_to_column(sig.EMRA.vs.Naive, var = "KEGG_Pathway")
-dim(GO_CD8)
-
-
-
-Comparison <- "CD8"
-KEGG_CD8a <- cbind(KEGG_CD8, Comparison)
-
-
-
-
-
-head(GD_GENESETS)
-
-common_elements <- combn(GD_GENESETS, 2, 
-                         FUN = function(x) intersect(x[[1]], x[[2]]), simplify = F)
-
-names(common_elements) <- vapply(combn(names(GD_GENESETS), 2, simplify = F), 
-                                 paste, collapse = "___", FUN.VALUE = character(1))
-
-head(common_elements)
-
-common_num <- lengths(common_elements)
-
-library(tidyverse)
-try <- as.data.frame(common_num)
-head(try)
-try1 <- rownames_to_column(try, var = "geneset")
-
-this <- try1 %>% separate("geneset", into = c("data1", "data2"), sep = "___")
-head(this)
-
-length_of_genesets <- data.frame(data1 = character(),
-                                 length1 = double(),
-                                 stringsAsFactors = F)
-c <- 1
-for(i in names(GD_GENESETS)){
-  work <- GD_GENESETS[[i]]
-  that <- length(work)
-  length_of_genesets[c, "data1"] <- i
-  length_of_genesets[c, "length1"] <- that
-  c <- c + 1
-}
-
-head(length_of_genesets)
-names(GD_GENESETS) %in% levels(as.factor(this$data1))
-
-this1 <- merge(this, length_of_genesets, by = "data1", all.x = T)
-subset(this1, data2 == "GO_RECEPTOR_INHIBITOR_ACTIVITY")
-
-
-length_of_genesets <- data.frame(data2 = character(),
-                                 length2 = double(),
-                                 stringsAsFactors = F)
-c <- 1
-for(i in names(GD_GENESETS)){
-  work <- GD_GENESETS[[i]]
-  that <- length(work)
-  length_of_genesets[c, "data2"] <- i
-  length_of_genesets[c, "length2"] <- that
-  c <- c + 1
-}
-
-this2 <- merge(this1, length_of_genesets, by = "data2", all.x = T)
-
-head(this2)
-Geneset_overlap <- this2
-
-Geneset_overlap$specific_1 <- Geneset_overlap$length1 - Geneset_overlap$common_num
-Geneset_overlap$specific_2 <- Geneset_overlap$length2 - Geneset_overlap$common_num
-
-Geneset_overlap$neg_agreement <- 2350 - (Geneset_overlap$common_num + Geneset_overlap$specific_1 + Geneset_overlap$specific_2)
-head(Geneset_overlap)
-
-Geneset_overlap$kappa <- (Geneset_overlap$common_num + 0)/(Geneset_overlap$common_num + Geneset_overlap$specific_1 +Geneset_overlap$specific_2 + 0)
-head(Geneset_overlap)
-
-test <- droplevels(subset(Geneset_overlap, data1 == "GO_INTERFERON_GAMMA_MEDIATED_SIGNALING_PATHWAY")) #- NA are where there aren't compared
-as.factor(test$data2)
-
-test <- droplevels(subset(Geneset_overlap, data2 == "GO_INTERFERON_GAMMA_MEDIATED_SIGNALING_PATHWAY")) #- NA are where there aren't compared
-as.factor(test$data1)
-
-writeCsvO(Geneset_overlap)
-
-kappa_scores_GD <- Geneset_overlap[, c("data1", "data2", "kappa")]
-
-library(GGally)
-library(network)
-mm.net <- network(test[,1:2], directed = T)
-
-ggnet2(mm.net,
-       labelon = TRUE,
-       size = 2, vjust = -0.6, mode = "kamadakawai", label.size = 3)
-
-
-test <- droplevels(subset(Geneset_overlap, kappa != 0))
-
-mm.net
-
-install.packages("geomnet")
-data(madmen, package = 'geomnet')
-
-head(madmen)
-
-?ggnetworkmap()
-
-
-KS_GD <- spread(kappa_scores_GD, "data2", value = "kappa")
-head(KS_GD)
-str(KS_GD)
-
-KS_GD1 <- column_to_rownames(KS_GD, var = "data1")
-KS_GD1
-is.na(KS_GD1) <- 0
-
-getwd()
-GO_GD <- read.csv("Bulk/Output/DEgenes/GO_GD.csv")
-
-head(GO_GD)
-
-GD <- as.character(GO_GD$GO_Geneset)
-
-GD1 <- Geneset_overlap[Geneset_overlap$data1 %in% GD, ]
-GD2 <- GD1[GD1$data2 %in% GD, ]
-
-head(GD2)
-
-
-## Making of a binary gene-term matrix
-### Take only the terms that are significant in GD
-
-
-GD_GENESETS <- Hs.c5[names(Hs.c5) %in% GD]
-that <- as.data.frame(unlist(GD_GENESETS)) %>% rownames_to_column(var = "Geneset")
-that$Geneset <- gsub("[0-9]{1,4}$", "", that$Geneset)
-colnames(that) <- c("Geneset", "Genes")
-length(that$Genes)
-
-gene_term_binary <- as.data.frame.matrix(table(that))
-
-head(gene_term_binary)
-
-
-
-
-
-library(Matrix)
-#https://stackoverflow.com/a/51421029/1412059
-fun <- function(x) {
-  n <- 0.5 + sqrt(0.25 + 2 * length(x)) #calculate dimension
-  i <- sequence(seq_len(n - 1)) #row indices
-  j <- rep(seq_len(n - 1), seq_len(n - 1)) + 1 # column indices
-  sparseMatrix(i = i, j = j, x = x, triangular = TRUE, dims = c(n, n))
-}
-
-output <- fun(common_num)
-diag(output) <- lengths(GD_GENESETS)
-dimnames(output) <- rep(list(names(GD_GENESETS)), 2)
-
-View(output)
-
-head(output)
-
-output1 <- as.data.frame(output)
-
-
-
-
-idx <- ids2indices(Hs.c5, id = rownames(v))
-cam.CD27LO.vs.CD27HI <- camera(v, idx, design, contrast = contr.matrix[, 1])
-head(cam.CD27LO.vs.CD27HI, 5)
-
-sig.CD27LO.vs.CD27HI <- droplevels(subset(cam.CD27LO.vs.CD27HI, FDR <= 0.01))
-GO_GD <- rownames_to_column(sig.CD27LO.vs.CD27HI, var = "GO_Geneset")
-writeCsvO(GO_GD)
-
-barcodeplot(efit$t[, 1], index = idx$GO_CELL_KILLING, main = "CD27LO vs CD27HI")
-
-cam.EMRA.vs.Naive <- camera(v, idx, design, contrast = contr.matrix[, "EMRAvsNaive"])
-head(cam.CD27LO.vs.CD27HI, 5)
-
-sig.EMRA.vs.Naive <- droplevels(subset(cam.EMRA.vs.Naive, FDR <= 0.01))
-GO_CD8 <- rownames_to_column(sig.EMRA.vs.Naive, var = "GO_Geneset")
-writeCsvO(GO_CD8)
-
-
-
-nrow(GO_GD)
-GO_GD$Directed_FDR <- ifelse((GO_GD$Direction == "Up"), GO_GD$FDR * 1, GO_GD$FDR * -1)
-
-head(GO_GD)
-
-
-ggplot(GO_GD, aes(x = GO_Geneset, y = Directed_FDR)) + geom_point()
-
-# Immunological Signatures
-load("~/OneDrive/UoB/PhD/Projects/GammaDelta/Bulk/RData_Objects/Immunological_Signatures.rdata")
-idx <- ids2indices(Hs.c7, id = rownames(v))
-cam.CD27LO.vs.CD27HI <- camera(v, idx, design, contrast = contr.matrix[, 1])
-head(cam.CD27LO.vs.CD27HI, 10)
-
-barcodeplot(efit$t[, 1], index = idx$GSE26495_NAIVE_VS_PD1LOW_CD8_TCELL_UP , 
-            index2 = idx$GSE26495_NAIVE_VS_PD1LOW_CD8_TCELL_DN, main = "NaiveVsCD8")
-
-
-
-
-
-
-
-
-
-
-install.packages("DOSE")
-BiocManager::install("PathwaySplice")
-library(DOSE)
-library(PathwaySplice)
-
-gene.based.table <- makeGeneTable(Hs.c5)
-?makeGeneTable
-View(featureBasedData)
-
-res <- runPathwaySplice(gene.based.table,genome='hg19',
-                        id='ensGene',test.cats=c('GO:BP'),
-                        go.size.limit=c(5,30),method='Wallenius')
-
-# labeling each node by gene set name
-enmap <- enrichmentMap(res,n=10,similarity.threshold=0.3,
-                       label.node.by.index = FALSE)
-
-# labeling each node by gene set index
-enmap <- enrichmentMap(res,n=10,similarity.threshold=0.3,
-                       label.node.by.index = TRUE)
-
-## Not run: 
-# illustrates specification of output file directory
-# Enable interactive map and label each node by gene set index
-enmap <- enrichmentMap(res,n=10,fixed=FALSE, similarity.threshold=0.3,
-                       label.node.by.index = TRUE, output.file.dir=tempdir())
-
-enmap <- enrichmentMap(res,n=10,similarity.threshold=0.3,
-                       label.node.by.index = FALSE, output.file.dir=tempdir())

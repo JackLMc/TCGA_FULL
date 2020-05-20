@@ -1,6 +1,6 @@
 # A script to investigate survival between patient subgroups
 ## Packages
-library(UsefulFunctions)
+# library(UsefulFunctions)
 library(tidyverse)
 library(ggpubr)
 
@@ -45,6 +45,10 @@ WD1$Stage <- ifelse((WD1$Neoplasm.Disease.Stage.American.Joint.Committee.on.Canc
 
 range(WD1$Diagnosis.Age, na.rm = T)
 
+# Add CMS data
+CMS_groups <- read.csv("./Output/CMS_groups.csv")
+WD1 <- merge(WD1, CMS_groups, by = "Patient.ID")
+
 ## Collate clinical data on MSI_STATUS
 ### Age
 droplevels(subset(WD1, MSI_STATUS == "MSS"))$Diagnosis.Age %>% mean(., na.rm = T)
@@ -54,7 +58,6 @@ droplevels(subset(WD1, MSI_STATUS == "MSI-H"))$Diagnosis.Age %>% mean(., na.rm =
 droplevels(subset(WD1, MSI_STATUS == "MSI-H"))$Diagnosis.Age %>% sd(., na.rm = T)
 
 ### BMI
-
 WD1$Height_sq <- (WD1$Patient.Height/100) * (WD1$Patient.Height/100)
 WD1$BMI <- WD1$Patient.Weight / WD1$Height_sq
 
@@ -92,9 +95,9 @@ droplevels(subset(WD1, MSI_STATUS == "MSS")) %>% count(., Vascular.invasion.indi
 droplevels(subset(WD1, MSI_STATUS == "MSI-H")) %>% count(., Vascular.invasion.indicator)
 
 
-
-
-colnames(WD1)
+### CMS groups
+droplevels(subset(WD1, MSI_STATUS == "MSS")) %>% count(., CMS)
+droplevels(subset(WD1, MSI_STATUS == "MSI-H")) %>% count(., CMS)
 
 # ## Tumour Tissue Source
 # droplevels(subset(WD1, MSI_STATUS == "MSS")) %>% count(., Tissue.Source.Site)
@@ -117,7 +120,7 @@ droplevels(subset(WD1, MSI_STATUS == "MSI-H")) %>% count(., Lymphovascular.invas
 
 
 ## KRAS mutants
-KRAS_pats <- read.csv("./Output/KRAS_mutants.csv")$. %>% levels()
+# KRAS_pats <- read.csv("./Output/KRAS_mutants.csv")$. %>% levels()
 
 
 
@@ -153,18 +156,33 @@ multi$BMI_group <- ifelse((multi$BMI < 18.5), "Underweight",
                                  ifelse((multi$BMI > 24.9 & multi$BMI < 29.9), "Overweight", 
                                         ifelse((is.na(multi$BMI)), NA, "Obese"))))
 
-head(multi)
+
+factorthese <- function(df, somecolumns){
+  Fctr <- names(df) %in% somecolumns
+  df[,Fctr] <- lapply(df[,Fctr], function(column) as.factor(as.character(column)))
+  return(df)
+}
+
+
 iR1 <- factorthese(multi, colnames(multi)[!'%in%'(colnames(multi), c("Diagnosis.Age", "Lymph.Node.s..Examined.Number", "BMI"))])
 
 # Set MSS as the baseline
-iR1$Subtype <- relevel(iR1$Subtype, "MSS")
+iR1$Subtype <- relevel(iR1$Subtype, "MSS-hiCIRC")
 iR2 <- column_to_rownames(iR1, var = "Patient.ID")
+
+
+## Write out the dataframe for SPSS
+SPSS <- iR2[, colnames(iR2) %in% c("Patient.ID", "Subtype", "Histological_Type", "Stage", "Cancer_Sided",
+                                   "Diagnosis.Age", "Vascular.invasion.indicator", "Lymph.Node.s..Examined.Number", "CMS")]
+SPSS <- rownames_to_column(SPSS, var = "Patient.ID")
+
+write.csv("./Output/SPSS.csv", x = SPSS, row.names = F)
 
 library(nnet)
 fit <- multinom(Subtype ~ 
                    Sex + Histological_Type + Stage +
                    Cancer_Sided +
-                   Diagnosis.Age + Vascular.invasion.indicator + Lymph.Node.s..Examined.Number + Patient.s.Vital.Status, data = iR2)
+                    Vascular.invasion.indicator + CMS, data = iR2)
 
 summary(fit)
 z <- summary(fit)$coefficients/summary(fit)$standard.errors
