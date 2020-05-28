@@ -55,7 +55,9 @@ ann$GeneID <- as.factor(ann$GeneID)
 Counts2 <- droplevels(merge(Counts1, ann, by = "GeneID"))
 
 # Gather the Pats
-Counts3 <- Counts2 %>% gather(contains("X."), key = "ID", value = "Count")
+head(Counts2)
+
+Counts3 <- Counts2 %>% gather(contains(".bam"), key = "ID", value = "Count")
 Counts3$ID <- as.factor(Counts3$ID)
 
 head(Counts3)
@@ -75,8 +77,10 @@ for(i in levels(Counts3$ID)){
 LoS <- lapply(listofsamp, function(x) x[!(names(x) %in% c("ID"))])
 
 # write Csvs for each member of the list
-setwd("/Users/JackMcMurray/OneDrive/UoB/PhD/Projects/GammaDelta/Bulk/Counts")
+setwd("/Users/JackMcMurray/OneDrive/UoB/PhD/Projects/6_TCGA_Full/TCGA_Full/Data/Toju/Counts")
 for(i in names(LoS)){
-  write.table(LoS[[i]], paste0(i,".txt"), sep = "\t", row.names = F)
+  write.table(LoS[[i]], paste0(i,".txt"), sep = "\t", row.names = F, quote = F)
 }
-setwd("/Users/JackMcMurray/OneDrive/UoB/PhD/Projects/GammaDelta/Bulk")
+save.image(file = "../Toju_counts.RData")
+
+setwd("/Users/JackMcMurray/OneDrive/UoB/PhD/Projects/6_TCGA_Full/TCGA_Full/")
