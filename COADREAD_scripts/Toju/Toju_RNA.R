@@ -1,9 +1,7 @@
 ## Packages
 required <- c("tidyverse", "ggpubr", "ggbiplot", "devtools", "gplots", "UsefulFunctions")
-for (lib in required)
-{
-  if (!require(lib, character.only = T))
-  {
+for (lib in required){
+  if (!require(lib, character.only = T)){
     install.packages(lib)
     suppressMessages(library(lib, character.only = T, quietly = T))
   }
@@ -26,6 +24,16 @@ library(Rsubread)
 # Run after having run the terminal protocol
 # bam.files <- get_sorbam("/Volumes/ResearchData/Willcox Group/Jack/GD_RNA_Comb/BAM/")
 bam.files <- list.files("/Volumes/JackMcMurray/Toju_data/bam/", pattern = ".bam$", full.names = T)
+
+# patientID <- gsub(".bam", "", bam.files)
+# fastq.files <- list.files("/Volumes/JackMcMurray/Toju_data/fastq/", pattern = ".fastq.gz$")
+# sample.lsit <- read.delim("/Volumes/JackMcMurray/Toju_data/fastq/sample.list.txt", header = F)
+# 
+# 
+# edit.fastq <- gsub("_S[[:digit:]]{1,}_R1_001.fastq.gz$", "", fastq.files)
+# edit.fastq <- gsub("_[[:digit:]]{1}$", "", edit.fastq)
+# fastq.files[duplicated(edit.fastq)]
+# fastq.files[grep("S377079", fastq.files)]
 
 ## Summary of the proportion of reads that are mapped
 # props <- propmapped(files = bam.files)
