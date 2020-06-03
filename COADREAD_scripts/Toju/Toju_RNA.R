@@ -197,23 +197,25 @@ Counts <- dcast(temp_df2, GeneID ~ Patient.ID, sum, value.var = "Count") # This 
 library(biomaRt)
 ensembl_DB <- useEnsembl(biomart = "ensembl", dataset = "hsapiens_gene_ensembl")
 
-Gene_Map <- getBM(attributes = c("ensembl_gene_id", "hgnc_symbol"),
-                  filters = "ensembl_gene_id", values = Counts_cleaned$Gene, ensembl_DB) # Only finds 56,543 of the 60,483 genes
+Gene_Map <- getBM(attributes = c("entrezgene_id", "hgnc_symbol"),
+                  filters = "entrezgene_id", values = Counts$GeneID, ensembl_DB) # Only finds 56,543 of the 60,483 genes
+# listAttributes(ensembl_DB)$name[grep("entrez", listAttributes(ensembl_DB)$name)]
 
-
+Counts_cleaned <- Counts
 rm(list = setdiff(ls(), c("Gene_Map", "Counts_cleaned", "ensembl_DB"))) # Clean environment
-# save.image("./R_Data/Counts_clean1.RData")
+# save.image("./R_Data/Toju/Counts_clean1_T.RData")
 
-load("./R_Data/Counts_clean1.RData")
+load("./R_Data/Toju/Counts_clean1_T.RData")
 library(UsefulFunctions)
 library(tidyverse)
 library(ggpubr)
 library(reshape2)
 
-colnames(Counts_cleaned)[colnames(Counts_cleaned) == "Gene"] <- "ensembl_gene_id"
+colnames(Counts_cleaned)[colnames(Counts_cleaned) == "GeneID"] <- "entrezgene_id"
 
-Counts_merged <- merge(Counts_cleaned, Gene_Map, by = "ensembl_gene_id")  
-Counts_SYMBOLS <- Counts_merged[, !'%in%'(colnames(Counts_merged), "ensembl_gene_id")]
+Counts_merged <- merge(Counts_cleaned, Gene_Map, by = "entrezgene_id")  # Merge loses a hell of a lot of genes... 8,996
+
+Counts_SYMBOLS <- Counts_merged[, !'%in%'(colnames(Counts_merged), "entrezgene_id")]
 
 Counts_long <- Counts_SYMBOLS %>% 
   gather(-hgnc_symbol, value = "Count", key = "Patient.ID")
@@ -252,21 +254,21 @@ Counts <- column_to_rownames(Counts, var = "hgnc_symbol")
 # x[rownames(x) %in% CIRC, ] %>% dim()
 
 Genes_to_keep <- Counts[rowSums(Counts) != 0, ] %>% rownames() # Keep all genes which are expressed in at least 1 patient
-
-
 CIRC_IG <- read.csv("./Exploratory_Data/Genesets/CIRC.csv") # Check that the CIRC genes are in this data
 CIRC_IG$SYMBOL <- as.factor(CIRC_IG$SYMBOL)
 CIRC <- CIRC_IG[CIRC_IG$CIRC, ]$SYMBOL %>% droplevels() %>% levels()
+length(CIRC) == 28
 
 Counts_above_0 <- Counts[rownames(Counts) %in% Genes_to_keep, ]
+
 # Counts_above_0[rownames(Counts_above_0) %in% CIRC, ] %>% dim()
 
 rm(list = setdiff(ls(), c("Gene_Map", "Counts_above_0", "ensembl_DB"))) # Clean environment
-save.image("./R_Data/Counts_clean2.RData")
+save.image("./R_Data/Toju/Counts_clean2_T.RData")
 
 # Normalisation
 # BiocManager::install("cqn")
-load("./R_Data/Counts_clean2.RData")
+load("./R_Data/Toju/Counts_clean2_T.RData")
 library(cqn)
 Gene_Map1 <- getBM(attributes = c("hgnc_symbol", "percentage_gene_gc_content", "start_position", "end_position"),
                    filters = "hgnc_symbol", values = rownames(Counts_above_0), ensembl_DB)
@@ -306,8 +308,8 @@ cqn_Counts <- cqn(Counts_above_0, lengths = Gene_Map3$length, x = Gene_Map3$Aver
 ## Look at systematic effects, n argument refers to the effect, 1 is always the covariate specified by the x argument above (gc content)
 ## whereas 2 is lengths
 par(mfrow = c(1, 2))
-cqnplot(cqn_Counts, n = 1, xlab = "GC content", lty = 1, ylim = c(1,7))
-cqnplot(cqn_Counts, n = 2, xlab = "length", lty = 1, ylim = c(1,7))
+cqnplot(cqn_Counts, n = 1, xlab = "GC content", lty = 1, ylim = c(1,10))
+cqnplot(cqn_Counts, n = 2, xlab = "length", lty = 1, ylim = c(1,10))
 
 
 ## Normalised expression values
@@ -317,6 +319,5 @@ rm(list = setdiff(ls(), c("Gene_Map3", "ensembl_DB", "Counts_cqn", "cqn_Counts",
 
 
 head(Counts_cqn) # These values are on a log2 scale.
-write.table("./Output/Patient_list.txt", x = as.factor(colnames(Counts_cqn)), row.names = F)
-save.image("./R_Data/Counts_clean.RData")
+save.image("./R_Data/Toju/Counts_clean_T.RData")
 
