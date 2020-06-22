@@ -412,8 +412,8 @@ for(i in 1:length(genes_of_interest)){
 ## Bespoke genes
 head(LongCQN)
 
-LongCQN$Gene[grepl("SOD2", LongCQN$Gene)] # Check whether your gene exists in the dataset
-GOI <- droplevels(subset(LongCQN, Gene == "NOX1")) 
+LongCQN$Gene[grepl("CYBB", LongCQN$Gene)] # Check whether your gene exists in the dataset
+GOI <- droplevels(subset(LongCQN, Gene == "CD14")) 
 
 
 ggplot(GOI, aes(x = Subtype, y = CQN)) +
@@ -432,21 +432,12 @@ ggplot(GOI, aes(x = Subtype, y = CQN)) +
 
 
 # THIS PART OF THE SCRIPT IS TO INVESTIGATE WHATEVER GARY WANTS ----
+work <- droplevels(subset(LongCQN, Gene == "CYBB" | Gene == "CD14"))
+work1 <- spread(work[, c("Patient.ID", "Subtype", "Gene", "CQN")], key = "Gene", value = "CQN")
 
-
-droplevels(subset(GOI1, SYMBOL == "ND4"))
-
-
-
-
-work <- droplevels(subset(GOI1, SYMBOL == "EHMT2" | SYMBOL == "CIITA"))
-work$Logged <- log2(work$FPKM + 1)
-
-work1 <- spread(work[, c("Patient.ID", "Subtype", "SYMBOL", "Logged")], key = "SYMBOL", value = "Logged")
-
-temp_plot <- ggplot(work1, aes(y = EHMT2, x = CIITA))+
+ggplot(work1, aes(y = CD14, x = CYBB))+
   geom_point(alpha = 0.8, size = 4, colour = "slategray") +
-  labs(x = "Log2(CIITA FPKM + 1)", y = "Log2(EHMT2 FPKM + 1)") +
+  labs(x = "cqn(CYBB)", y = "cqn(CD14)") +
   theme_bw() +
   # geom_text(aes(x = -0.3, y = .75, label = lm_eqn(lm(CIRC_Genes ~ Enrichment, work))), parse = T) +
   # scale_color_manual(values = cbcols) +
