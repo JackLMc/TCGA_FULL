@@ -439,7 +439,6 @@ ggplot(work1, aes(y = CD14, x = CYBB))+
   geom_point(alpha = 0.8, size = 4, colour = "slategray") +
   labs(x = "cqn(CYBB)", y = "cqn(CD14)") +
   theme_bw() +
-  # geom_text(aes(x = -0.3, y = .75, label = lm_eqn(lm(CIRC_Genes ~ Enrichment, work))), parse = T) +
   # scale_color_manual(values = cbcols) +
   geom_smooth(method = "lm", se = F) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
