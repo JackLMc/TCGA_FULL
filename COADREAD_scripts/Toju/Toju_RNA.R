@@ -7,15 +7,15 @@ for (lib in required){
   }
 }
 
-# Comparisons and Colours
-my_comparisons <- list(c("VD1.CD27HI", "VD1.CD27LO"), c("VD1.CD27HI", "CD8.EMRA"), c("VD1.CD27HI", "CD8.Naive"), c("VD1.CD27HI", "VD2"),
-                       c("VD1.CD27LO", "CD8.EMRA"), c("VD1.CD27LO", "CD8.Naive"), c("VD1.CD27LO", "VD2"),
-                       c("CD8.EMRA", "CD8.Naive"), c("CD8.EMRA", "VD2"), c("CD8.Naive", "VD2"))
+# devtools:: install_github("https://github.com/vqv/ggbiplot")
 
-# Colours
-cbcols <- c("VD1.CD27LO" = "#999999", "CD8.EMRA" = "#56B4E9",
-            "CD8.Naive" = "#E69F00", "VD1.CD27HI" = "#009E73",
-            "VD2" = "#CC79A7")
+# Comparisons and Colours
+my_comparisons <- list(c("MSS-hiCIRC", "MSI-H"),
+                       c("MSS-hiCIRC", "MSS"),
+                       c("MSI-H", "MSS"))
+cbcols <- c("MSS-hiCIRC" = "#999999",
+            "MSI-H" = "#56B4E9",
+            "MSS" = "#009E73")
 
 # source("https://bioconductor.org/biocLite.R")
 # biocLite("Rsubread", dependencies = T)
@@ -320,4 +320,218 @@ rm(list = setdiff(ls(), c("Gene_Map3", "ensembl_DB", "Counts_cqn", "cqn_Counts",
 
 head(Counts_cqn) # These values are on a log2 scale.
 save.image("./R_Data/Toju/Counts_clean_T.RData")
+
+
+boxplot(Counts_cqn[rownames(Counts_cqn) %in% "HLA-DRA", ])
+
+# Correlates and CIRC score calculation
+library(UsefulFunctions)
+library(tidyverse)
+library(ggpubr)
+library(reshape2)
+
+load("./R_Data/Toju/Counts_clean_T.RData")
+
+# Gain the genesets in the format I need
+CIRC_IG <- read.csv("./Exploratory_Data/Genesets/CIRC.csv") # Check that the CIRC genes are in this data
+CIRC_IG$SYMBOL <- as.factor(CIRC_IG$SYMBOL)
+
+Genes_of_CIRC <- CIRC_IG[CIRC_IG$CIRC, ]
+Genes_of_CIRC$Name <- "CIRC"
+Symbolss <- Genes_of_CIRC[, !'%in%'(colnames(Genes_of_CIRC), c("IG", "CIRC"))]
+SYMBOL <- c(rownames(Counts_cqn)[grep("HLA-D", rownames(Counts_cqn))])
+Name <- "ClassII"
+ClassII <- cbind(SYMBOL, Name)
+Genesets <- rbind(Symbolss, ClassII)
+
+Genesets$SYMBOL <- as.factor(Genesets$SYMBOL)
+Genesets$Name <- as.factor(Genesets$Name)
+
+
+First_List <- list()
+c <- 1
+for(i in levels(Genesets$Name)){
+  print(i)
+  work <- droplevels(subset(Genesets, Name == i))
+  Genes <- levels(work$SYMBOL)
+  First_List[[i]] <- Genes
+  c <- c + 1
+}
+
+# BiocManager::install("GSVA")
+library(GSVA)
+Enrichment_Initial <- gsva(Counts_cqn, First_List)
+Enrichment_Initial1 <- Enrichment_Initial %>% as.data.frame() %>%
+  rownames_to_column(., var = "Geneset")  %>% 
+  gather(contains("S", ignore.case = F), key = "Patient.ID", value = "Enrich") %>% #This is a dangerous grep
+  spread(., key = "Geneset", value = "Enrich")
+
+Enrichment_Initial1$Patient.ID <- as.factor(Enrichment_Initial1$Patient.ID)
+
+# Get the IHC data
+Toju_clin <- read.csv("./Data/Toju/Toju_Clinical.csv")
+Toju_clin$Patient.ID <- sub("[_][^_]+$", "", Toju_clin$Sample.name)
+colnames(Toju_clin)[colnames(Toju_clin) == "ClassII"] <- "ClassII_IHC"
+
+Merged <- merge(Enrichment_Initial1, Toju_clin[, c("Patient.ID", "ClassII_IHC", "Rank", "MMR")], by = "Patient.ID")
+
+Merged$ClassII_IHC[Merged$ClassII_IHC == "na"] <- NA
+Merged1 <- Merged[!is.na(Merged$ClassII_IHC), ]
+Merged1$ClassII_IHC <- as.numeric(as.character(Merged1$ClassII_IHC))
+
+ggplot(Merged1, aes(y = ClassII_IHC, x = CIRC))+
+  geom_point(alpha = 0.8, size = 4, colour = "slategray") +
+  labs(x = "CIRC", y = "ClassII_IHC") +
+  theme_bw() +
+  # geom_text(aes(x = -0.3, y = .75, label = lm_eqn(lm(CIRC_Genes ~ Enrichment, work))), parse = T) +
+  # scale_color_manual(values = cbcols) +
+  geom_smooth(method = "lm", se = F) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.position = "none") +
+  stat_cor()
+
+## Get MSS-hiCIRC
+CIRC_cutoff <- 0.36
+Merged2 <- Merged1[!is.na(Merged1$MMR), ]
+
+Merged2$Subtype <- ifelse((Merged2$CIRC >= CIRC_cutoff & Merged2$MMR == "MSS"), "MSS-hiCIRC", as.character(Merged2$MMR))
+
+
+
+head(Merged2)
+my_comparisons <- list(c("MSS-hiCIRC", "MSI-H"),
+                       c("MSS-hiCIRC", "MSS"),
+                       c("MSI-H", "MSS"))
+cbcols <- c("MSS-hiCIRC" = "#999999",
+            "MSI-H" = "#56B4E9",
+            "MSS" = "#009E73")
+
+
+ggplot(Merged2, aes(x = Subtype, y = CIRC)) +
+  geom_boxplot(alpha = 0.5, width = 0.2) +
+  geom_violin(aes(Subtype, fill = Subtype),
+              scale = "width", alpha = 0.8) +
+  scale_fill_manual(values = cbcols) +
+  labs(x = "MSI Status", y = "CIRC Enrichment Score") +
+  theme_bw() +
+  theme(axis.text = element_text(size = 16)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.direction = "horizontal", legend.position = "top") +
+  stat_compare_means(comparisons = my_comparisons,
+                     label = "p.signif", method = "wilcox.test")
+
+
+
+## This is Toju's data...
+## Check how many patients per group there are
+library(reshape2)
+dcast(Merged2, Subtype ~., length)
+
+# Cell Types (immunome and Castro [Th17])
+## Pearson correlation across genesets.
+CTGenesets <- read.csv("./Exploratory_Data/Genesets/Cell_Type_Geneset.csv", stringsAsFactors = T)
+SigGenesets <- read.csv("./Exploratory_Data/Genesets/Signature_Geneset.csv", stringsAsFactors = T)
+Genesets <- rbind(CTGenesets, SigGenesets)
+
+dd <- deduplicate(Genesets)
+
+geneset_list <- list()
+for(i in levels(Genesets$Parameter)){
+  print(i)
+  work <- droplevels(subset(Genesets, Parameter == i))
+  genes <- levels(work$Hugo_Symbol)
+  geneset_list[[i]] <- genes
+}
+
+Enrichments <- gsva(Counts_cqn, geneset_list) %>% as.data.frame() %>%
+  rownames_to_column(., var = "Geneset")  %>% 
+  gather(contains("S", ignore.case = F), key = "Patient.ID", value = "Enrich") %>% #This is a dangerous grep
+  spread(., key = "Geneset", value = "Enrich")
+
+
+Enrichments$Patient.ID <- as.factor(Enrichments$Patient.ID)
+Enrich <- merge(Merged2[, c("Patient.ID", "Subtype")], Enrichments, by = "Patient.ID")
+
+Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -Patient.ID, -Subtype)
+Enrich1$Parameter <- as.factor(Enrich1$Parameter)
+head(Enrich1)
+
+
+for(i in levels(Enrich1$Parameter)){
+  print(i)
+  work <- droplevels(subset(Enrich1, Parameter == i))
+  temp_plot <- ggplot(work, aes(x = Subtype, y = Enrichment)) +
+    geom_boxplot(alpha = 0.5, width = 0.2) + 
+    geom_violin(aes(Subtype, fill = Subtype),
+                scale = "width", alpha = 0.8) +
+    scale_fill_manual(values = cbcols) +
+    labs(x = "Subtype", y = paste(i, "enrichment score")) +
+    theme_bw() +
+    theme(axis.text = element_text(size = 16)) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(legend.direction = "horizontal", legend.position = "top") + 
+    stat_compare_means(comparisons = my_comparisons,
+                       label = "p.signif", method = "wilcox.test")
+  filen <- paste0(i, ".pdf")
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
+                   path = "./Figures/Toju/Gene_Sets/Enrichment/CellType",
+                   height = 6, width = 6)}
+
+
+# # GO TERMS
+## Reactive Oxygen Species
+ROS <- read.csv("./Exploratory_Data/Genesets/GO_term_summary_20190320_151206.csv", stringsAsFactors = T)
+ROS_list <- list()
+c <- 1
+for(i in levels(ROS$Annotated.Term)){
+  print(i)
+  work <- droplevels(subset(ROS, Annotated.Term == i))
+  Genes <- toupper(levels(work$Symbol))
+  ROS_list[[i]] <- Genes
+  c <- c + 1
+}
+
+Enrichment_book <- gsva(Counts_cqn, ROS_list)
+
+Enrichment_book1 <- Enrichment_book %>% as.data.frame() %>%
+  rownames_to_column(., var = "Geneset")  %>% 
+  gather(contains("S", ignore.case = F), key = "Patient.ID", value = "Enrich") %>% #This is a dangerous grep
+  spread(., key = "Geneset", value = "Enrich")
+
+
+Enrichment_book1$Patient.ID <- as.factor(Enrichment_book1$Patient.ID)
+Enrich <- merge(Merged2[, c("Patient.ID", "Subtype")], Enrichment_book1, by = "Patient.ID")
+
+Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -Patient.ID, -Subtype)
+Enrich1$Parameter <- as.factor(Enrich1$Parameter)
+head(Enrich1)
+
+
+for(i in levels(Enrich1$Parameter)){
+  print(i)
+  work <- droplevels(subset(Enrich1, Parameter == i))
+  temp_plot <- ggplot(work, aes(x = Subtype, y = Enrichment)) +
+    geom_boxplot(alpha = 0.5, width = 0.2) + 
+    geom_violin(aes(Subtype, fill = Subtype),
+                scale = "width", alpha = 0.8) +
+    scale_fill_manual(values = cbcols) +
+    labs(x = "Subtype", y = paste(i, "enrichment score")) +
+    theme_bw() +
+    theme(axis.text = element_text(size = 16)) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(legend.direction = "horizontal", legend.position = "top") + 
+    stat_compare_means(comparisons = my_comparisons,
+                       label = "p.signif", method = "wilcox.test")
+  filen <- paste0(i, ".pdf")
+  ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
+                   path = "./Figures/Toju/Gene_Sets/Enrichment/ROS",
+                   height = 6, width = 6)}
+
+
+
+
+
+
+
+
 
