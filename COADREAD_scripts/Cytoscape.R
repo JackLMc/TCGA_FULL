@@ -185,6 +185,7 @@ KEGG_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/c2.cp.kegg.v7.0.symbols.gmt")
 # GO_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/c5.all.v7.0.symbols.gmt")
 # immuno_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/c7.all.v7.0.symbols.gmt")
 hallmark_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/h.all.v7.0.symbols.gmt")
+bio_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/c5.bp.v7.1.symbols.gmt")
 
 
 #### ENSURE 03/06/09 is MARCHF6 ###
@@ -202,11 +203,11 @@ GoI1$Symbol[!('%in%'(GoI1$Symbol, rownames(v)))]
 # filter_gmt <- All_gmt[names(All_gmt) %in% names(GO_gmt)]
 
 ## Filter genesets for very small/very big sizes (reduces multiple comparison deficit) (2918 genesets)
-geneset_sizes <- unlist(lapply(KEGG_gmt, length))
+geneset_sizes <- unlist(lapply(bio_gmt, length))
 geneset_sizes
 
 geneset_indices <- which(geneset_sizes>=50 & geneset_sizes<200)
-filtered_set <- hallmark_gmt[geneset_indices]
+filtered_set <- bio_gmt[geneset_indices]
 filtered_set1 <- filtered_set[!'%in%'(names(filtered_set), c("Th17_origin", "SW480 cancer cells", "T cells", "T helper cells", "Cytotoxic cells"))]
 
 hallmark_gmt1 <- hallmark_gmt[!'%in%'(names(hallmark_gmt), c("HALLMARK_TNFA_SIGNALING_VIA_NFKB", "HALLMARK_MITOTIC_SPINDLE",
@@ -222,12 +223,12 @@ hallmark_gmt1 <- hallmark_gmt[!'%in%'(names(hallmark_gmt), c("HALLMARK_TNFA_SIGN
 
 
 
-idx <- ids2indices(hallmark_gmt1, id = rownames(v))
+idx <- ids2indices(filtered_set, id = rownames(v))
 camera_results <- camera(v, idx, design, contrast = contr.matrix[, "MSI_HvsMSS_hiCIRC"])
 
 ## Use the camera_result table?
 
-droplevels(subset(camera_results, FDR > 0.05)) %>% View()
+droplevels(subset(camera_results, FDR < 0.05)) %>% View()
 
 
 
