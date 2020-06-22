@@ -421,6 +421,8 @@ ggplot(Merged2, aes(x = Subtype, y = CIRC)) +
                      label = "p.signif", method = "wilcox.test")
 
 
+droplevels(subset(Merged2, Subtype == "MSS"))
+View(Merged2)
 
 ## This is Toju's data...
 ## Check how many patients per group there are
