@@ -32,12 +32,13 @@ load("./R_Data/Counts_clean.RData")
 set.seed(123)
 
 ## CIRC Score calculation (enrichment of the CIRC gene CQN) ----
-CIRC_IG <- read.csv("./Exploratory_Data/Genesets/CIRC.csv")
-CIRC_IG$SYMBOL <- as.factor(CIRC_IG$SYMBOL)
+SigGen <- read.csv("./Exploratory_Data/Genesets/Signature_Genesets.csv")
+CIRC_IG <- droplevels(subset(SigGen, Signature == "CIRC"))
+CIRC_IG$HUGO.symbols <- as.factor(CIRC_IG$HUGO.symbols)
 
 # Label
-CIRC_genes <- droplevels(subset(CIRC_IG, CIRC == T)) %>% 
-  takegenelevels(.) %>% list()
+CIRC_genes <- droplevels(subset(CIRC_IG, Signature == "CIRC"))$HUGO.symbols %>%
+  levels() %>% list()
 names(CIRC_genes) <- "CIRC_Genes"
 
 # Calculate Enrichment of CIRC

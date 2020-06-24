@@ -28,28 +28,30 @@ Ccqn <- Counts_cqn
 # BiocManager::install("GSVA")
 library(GSVA)
 
-# Ping
-Ping <- read.csv("./Exploratory_Data/Genesets/Ping_Chih_Ho.csv")
-Ping <- factorthese(Ping, c("Name", "Gene"))
+## Correlate with the CIRC
+SigGen <- read.csv("./Exploratory_Data/Genesets/Signature_Genesets.csv")
+SigGen <- factorthese(SigGen, c("Signature", "HUGO.symbols"))
 
-Ping_List <- list()
+head(SigGen)
+
+SigGen_List <- list()
 c <- 1
-for(i in levels(Ping$Name)){
+for(i in levels(SigGen$Signature)){
   print(i)
-  work <- droplevels(subset(Ping, Name == i))
-  Genes <- levels(work$Gene)
-  Ping_List[[i]] <- Genes
+  work <- droplevels(subset(SigGen, Signature == i))
+  Genes <- levels(work$HUGO.symbols)
+  SigGen_List[[i]] <- Genes
   c <- c + 1
 }
 
-Enrichment_Ping <- gsva(Ccqn, Ping_List)
-Enrichment_Ping1 <- Enrichment_Ping %>% as.data.frame() %>%
+Enrichment_SigGen <- gsva(Ccqn, SigGen_List)
+Enrichment_SigGen1 <- Enrichment_SigGen %>% as.data.frame() %>%
   rownames_to_column(., var = "Geneset") %>%
   gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
   spread(., key = "Geneset", value = "Enrich")
 
-Enrichment_Ping1$Patient.ID <- as.factor(Enrichment_Ping1$Patient.ID)
-Enrich <- merge(pat_sub, Enrichment_Ping1, by = "Patient.ID")
+Enrichment_SigGen1$Patient.ID <- as.factor(Enrichment_SigGen1$Patient.ID)
+Enrich <- merge(pat_sub, Enrichment_SigGen1, by = "Patient.ID")
 
 Enrich1 <- Enrich %>% gather(key = "Parameter", value = "Enrichment", -CIRC_Genes, -Patient.ID, -Subtype)
 Enrich1$Parameter <- as.factor(Enrich1$Parameter)
@@ -74,18 +76,13 @@ for(i in levels(Enrich1$Parameter)){
 }
 
 # Cell Types (immunome and Castro [Th17])
-## Pearson correlation across genesets.
-CTGenesets <- read.csv("./Exploratory_Data/Genesets/Cell_Type_Geneset.csv")
-SigGenesets <- read.csv("./Exploratory_Data/Genesets/Signature_Geneset.csv")
-Genesets <- rbind(CTGenesets, SigGenesets)
-
-dd <- deduplicate(Genesets)
-
+CTGenesets <- read.csv("./Exploratory_Data/Genesets/Investigative_Genesets.csv", stringsAsFactors = T)
+Genesets <- deduplicate(CTGenesets)
 geneset_list <- list()
-for(i in levels(Genesets$Parameter)){
+for(i in levels(Genesets$Cell.population)){
   print(i)
-  work <- droplevels(subset(Genesets, Parameter == i))
-  genes <- levels(work$Hugo_Symbol)
+  work <- droplevels(subset(Genesets, Cell.population == i))
+  genes <- levels(work$HUGO.symbols)
   geneset_list[[i]] <- genes
 }
 

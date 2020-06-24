@@ -430,20 +430,21 @@ library(reshape2)
 dcast(Merged2, Subtype ~., length)
 
 # Cell Types (immunome and Castro [Th17])
-## Pearson correlation across genesets.
-CTGenesets <- read.csv("./Exploratory_Data/Genesets/Cell_Type_Geneset.csv", stringsAsFactors = T)
-SigGenesets <- read.csv("./Exploratory_Data/Genesets/Signature_Geneset.csv", stringsAsFactors = T)
-Genesets <- rbind(CTGenesets, SigGenesets)
-
-dd <- deduplicate(Genesets)
-
+CTGenesets <- read.csv("./Exploratory_Data/Genesets/Investigative_Genesets.csv", stringsAsFactors = T)
+Genesets <- deduplicate(CTGenesets)
 geneset_list <- list()
-for(i in levels(Genesets$Parameter)){
+for(i in levels(Genesets$Cell.population)){
   print(i)
-  work <- droplevels(subset(Genesets, Parameter == i))
-  genes <- levels(work$Hugo_Symbol)
+  work <- droplevels(subset(Genesets, Cell.population == i))
+  genes <- levels(work$HUGO.symbols)
   geneset_list[[i]] <- genes
 }
+
+Enrichments <- gsva(Ccqn, geneset_list) %>% as.data.frame() %>%
+  rownames_to_column(., "Geneset") %>% gather(contains("TCGA"), key = "Patient.ID", value = "Enrichment") %>%
+  merge(., pat_sub, by = "Patient.ID")
+
+Enrichments$Geneset <- as.factor(Enrichments$Geneset)
 
 Enrichments <- gsva(Counts_cqn, geneset_list) %>% as.data.frame() %>%
   rownames_to_column(., var = "Geneset")  %>% 

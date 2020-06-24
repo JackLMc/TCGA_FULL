@@ -57,18 +57,15 @@ for(i in levels(MCP$Cell_Population)){
 
 
 # Estimate my Th17 cells?
-CTGenesets <- read.csv("./Exploratory_Data/Genesets/Castro_collated.csv")
-colnames(CTGenesets) <- c("Cell population", "HUGO symbols")
-
-head(CTGenesets)
+CTGenesets <- read.csv("./Exploratory_Data/Genesets/Investigative_Genesets.csv", check.names = F)
 
 MCP_estimate <- MCPcounter.estimate(Counts_cqn, featuresType = "HUGO_symbols", genes = CTGenesets) %>% 
   as.data.frame() %>%
   rownames_to_column(., var = "Cell_Population") %>% 
   gather(contains("TCGA"), key = "Patient.ID", value = "Estimate")
+pat_sub <- read.csv("./Output/Patient_Subtypes_09_03.csv")
 
 MCP <- merge(MCP_estimate, pat_sub[, c("Patient.ID", "Subtype")], by = "Patient.ID")
-str(MCP)
 MCP <- factorthese(MCP, c("Patient.ID", "Subtype", "Cell_Population"))
 
 

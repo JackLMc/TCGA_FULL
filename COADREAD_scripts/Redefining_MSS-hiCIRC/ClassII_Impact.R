@@ -1,5 +1,4 @@
 # A script to evaluate the impact of Class II
-
 library(UsefulFunctions)
 library(tidyverse)
 library(ggpubr)
@@ -18,16 +17,17 @@ load("./R_Data/Counts_clean.RData")
 # Don't se a seed, as lower down the seed is set again and again for the loop
 
 ## CIRC Geneset
-CIRC_IG <- read.csv("./Exploratory_Data/Genesets/CIRC.csv")
-CIRC_IG$SYMBOL <- as.factor(CIRC_IG$SYMBOL)
+SigGen <- read.csv("./Exploratory_Data/Genesets/Signature_Genesets.csv")
+CIRC_IG <- droplevels(subset(SigGen, Signature == "CIRC" | Signature == "Neeraj_IG"))
+CIRC_IG$HUGO.symbols <- as.factor(CIRC_IG$HUGO.symbols)
 
 ## Clinical
 pat_sub <- read.csv("./Output/Patient_Subtypes_09_03.csv")
 Clin_542 <- read.csv("./Output/Clinical_Data_542.csv")
 
 ## Label CIRC genes 
-CIRC_genes <- droplevels(subset(CIRC_IG, CIRC == T)) %>%
-  takegenelevels()
+CIRC_genes <- droplevels(subset(CIRC_IG, Signature == "CIRC"))$HUGO.symbols %>%
+  levels()
 
 LongCQN <- Counts_cqn %>% as.data.frame() %>%
   rownames_to_column(., var = "Gene") %>%
@@ -45,6 +45,7 @@ pca1 <- LongCQN %>% as.data.frame() %>%
   gather(contains("TCGA"), key = "Patient.ID", value = "CQN") %>%
   spread(key = "Gene", value = "CQN") %>% 
   merge(pat_sub, by = "Patient.ID")  # Merge with cleaned clinical
+pca1 <- factorthese(pca1, c("Patient.ID", "Subtype"))
 
 my_data <- pca1 %>%
   filter(Subtype == "MSS" | Subtype == "MSS-hiCIRC") %>%
