@@ -40,12 +40,12 @@ SigGen <- read.csv("./Data/Genesets/Raw/Pre_Change_Signature_Genesets.csv", stri
 SigGen$HUGO.symbols <- as.character(SigGen$HUGO.symbols)
 SigGen[!'%in%'(SigGen$HUGO.symbols, rownames(Counts_cqn)), ]
 
-rownames(Counts_cqn)[grep("CCN4", rownames(Counts_cqn))]
+
+
+rownames(Counts_cqn)[grep("ICAM", rownames(Counts_cqn))]
 
 ### HTG
-SigGen$HUGO.symbols[SigGen$HUGO.symbols == "ATP5F1"] <- "C2CD4A"
-
-### CAF_Alfie
+SigGen$HUGO.symbols[SigGen$HUGO.symbols == "ATP5F1"] <- "ATP5PB"
 
 write.table("./Data/Genesets/Signature_Genesets.txt", x = SigGen, row.names = F, quote = F, sep = "\t") # Change HUGO.symbols 03/06/2009 to 
 SigGen <- read.delim("./Data/Genesets/Signature_Genesets.txt", stringsAsFactors = T)
