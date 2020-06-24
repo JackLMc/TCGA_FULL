@@ -1,3 +1,5 @@
+# A script to investigate the enrichment of collated genesets
+
 library(UsefulFunctions)
 library(tidyverse)
 library(ggpubr)
@@ -29,10 +31,7 @@ Ccqn <- Counts_cqn
 library(GSVA)
 
 ## Correlate with the CIRC
-SigGen <- read.csv("./Exploratory_Data/Genesets/Signature_Genesets.csv")
-SigGen <- factorthese(SigGen, c("Signature", "HUGO.symbols"))
-
-head(SigGen)
+SigGen <- read.csv("./Exploratory_Data/Genesets/Signature_Genesets.csv", stringsAsFactors = T)
 
 SigGen_List <- list()
 c <- 1
