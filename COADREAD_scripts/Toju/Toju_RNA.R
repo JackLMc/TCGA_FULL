@@ -81,7 +81,7 @@ setwd("/Users/JackMcMurray/OneDrive/UoB/PhD/Projects/6_TCGA_Full/TCGA_Full/Data/
 for(i in names(LoS)){
   write.table(LoS[[i]], paste0(i,".txt"), sep = "\t", row.names = F, quote = F)
 }
-save.image(file = "../Toju_counts.RData")
+# save.image(file = "../Toju_counts.RData")
 
 setwd("/Users/JackMcMurray/OneDrive/UoB/PhD/Projects/6_TCGA_Full/TCGA_Full/")
 
@@ -254,17 +254,23 @@ Counts <- column_to_rownames(Counts, var = "hgnc_symbol")
 # x[rownames(x) %in% CIRC, ] %>% dim()
 
 Genes_to_keep <- Counts[rowSums(Counts) != 0, ] %>% rownames() # Keep all genes which are expressed in at least 1 patient
-CIRC_IG <- read.csv("./Data/Genesets/CIRC.csv") # Check that the CIRC genes are in this data
-CIRC_IG$SYMBOL <- as.factor(CIRC_IG$SYMBOL)
-CIRC <- CIRC_IG[CIRC_IG$CIRC, ]$SYMBOL %>% droplevels() %>% levels()
-length(CIRC) == 28
+
+### Check the CIRC exists
+SigGen <- read.delim("./Data/Genesets/Signature_Genesets.txt", stringsAsFactors = T)
+CIRC_IG <- droplevels(subset(SigGen, Signature == "CIRC"))
+CIRC_IG$HUGO.symbols <- as.factor(CIRC_IG$HUGO.symbols)
+
+CIRC_genes <- droplevels(subset(CIRC_IG, Signature == "CIRC"))$HUGO.symbols %>%
+  levels()
+Genes_to_keep[Genes_to_keep %in% CIRC_genes] %>% length()
+###
 
 Counts_above_0 <- Counts[rownames(Counts) %in% Genes_to_keep, ]
 
 # Counts_above_0[rownames(Counts_above_0) %in% CIRC, ] %>% dim()
 
 rm(list = setdiff(ls(), c("Gene_Map", "Counts_above_0", "ensembl_DB"))) # Clean environment
-save.image("./R_Data/Toju/Counts_clean2_T.RData")
+# save.image("./R_Data/Toju/Counts_clean2_T.RData")
 
 # Normalisation
 # BiocManager::install("cqn")
@@ -319,7 +325,7 @@ rm(list = setdiff(ls(), c("Gene_Map3", "ensembl_DB", "Counts_cqn", "cqn_Counts",
 
 
 head(Counts_cqn) # These values are on a log2 scale.
-save.image("./R_Data/Toju/Counts_clean_T.RData")
+# save.image("./R_Data/Toju/Counts_clean_T.RData")
 
 
 boxplot(Counts_cqn[rownames(Counts_cqn) %in% "HLA-DRA", ])
@@ -332,35 +338,19 @@ library(reshape2)
 
 load("./R_Data/Toju/Counts_clean_T.RData")
 
-# Gain the genesets in the format I need
-CIRC_IG <- read.csv("./Data/Genesets/CIRC.csv") # Check that the CIRC genes are in this data
+## CIRC Score calculation (enrichment of the CIRC gene CQN)
+SigGen <- read.delim("./Data/Genesets/Signature_Genesets.txt", stringsAsFactors = T)
+CIRC_IG <- droplevels(subset(SigGen, Signature == "CIRC"))
+CIRC_IG$HUGO.symbols <- as.factor(CIRC_IG$HUGO.symbols)
 
-### NEEDS ALTERING
+CIRC_genes <- droplevels(subset(CIRC_IG, Signature == "CIRC"))$HUGO.symbols %>%
+  levels() %>% list()
+names(CIRC_genes) <- "CIRC_Genes"
 
+ClassII <- c(rownames(Counts_cqn)[grep("HLA-D", rownames(Counts_cqn))]) %>% list()
+names(ClassII) <- "ClassII"
 
-CIRC_IG$SYMBOL <- as.factor(CIRC_IG$SYMBOL)
-
-Genes_of_CIRC <- CIRC_IG[CIRC_IG$CIRC, ]
-Genes_of_CIRC$Name <- "CIRC"
-Symbolss <- Genes_of_CIRC[, !'%in%'(colnames(Genes_of_CIRC), c("IG", "CIRC"))]
-SYMBOL <- c(rownames(Counts_cqn)[grep("HLA-D", rownames(Counts_cqn))])
-Name <- "ClassII"
-ClassII <- cbind(SYMBOL, Name)
-Genesets <- rbind(Symbolss, ClassII)
-
-Genesets$SYMBOL <- as.factor(Genesets$SYMBOL)
-Genesets$Name <- as.factor(Genesets$Name)
-
-
-First_List <- list()
-c <- 1
-for(i in levels(Genesets$Name)){
-  print(i)
-  work <- droplevels(subset(Genesets, Name == i))
-  Genes <- levels(work$SYMBOL)
-  First_List[[i]] <- Genes
-  c <- c + 1
-}
+First_List <- c(ClassII, CIRC_genes)
 
 # BiocManager::install("GSVA")
 library(GSVA)
@@ -373,7 +363,7 @@ Enrichment_Initial1 <- Enrichment_Initial %>% as.data.frame() %>%
 Enrichment_Initial1$Patient.ID <- as.factor(Enrichment_Initial1$Patient.ID)
 
 # Get the IHC data
-Toju_clin <- read.csv("./Data/Toju/Toju_Clinical.csv")
+Toju_clin <- read.csv("./Data/Toju_RNA/Toju_Clinical.csv")
 Toju_clin$Patient.ID <- sub("[_][^_]+$", "", Toju_clin$Sample.name)
 colnames(Toju_clin)[colnames(Toju_clin) == "ClassII"] <- "ClassII_IHC"
 
@@ -383,7 +373,9 @@ Merged$ClassII_IHC[Merged$ClassII_IHC == "na"] <- NA
 Merged1 <- Merged[!is.na(Merged$ClassII_IHC), ]
 Merged1$ClassII_IHC <- as.numeric(as.character(Merged1$ClassII_IHC))
 
-ggplot(Merged1, aes(y = ClassII_IHC, x = CIRC))+
+head(Merged1)
+
+ggplot(Merged1, aes(y = ClassII_IHC, x = CIRC_Genes))+
   geom_point(alpha = 0.8, size = 4, colour = "slategray") +
   labs(x = "CIRC", y = "ClassII_IHC") +
   theme_bw() +
@@ -402,7 +394,6 @@ Merged2$Subtype <- ifelse((Merged2$CIRC >= CIRC_cutoff & Merged2$MMR == "MSS"), 
 
 
 
-head(Merged2)
 my_comparisons <- list(c("MSS-hiCIRC", "MSI-H"),
                        c("MSS-hiCIRC", "MSS"),
                        c("MSI-H", "MSS"))
@@ -411,7 +402,7 @@ cbcols <- c("MSS-hiCIRC" = "#999999",
             "MSS" = "#009E73")
 
 
-ggplot(Merged2, aes(x = Subtype, y = CIRC)) +
+ggplot(Merged2, aes(x = Subtype, y = CIRC_Genes)) +
   geom_boxplot(alpha = 0.5, width = 0.2) +
   geom_violin(aes(Subtype, fill = Subtype),
               scale = "width", alpha = 0.8) +
