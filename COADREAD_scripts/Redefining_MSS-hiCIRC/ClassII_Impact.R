@@ -17,7 +17,7 @@ load("./R_Data/Counts_clean.RData")
 # Don't se a seed, as lower down the seed is set again and again for the loop
 
 ## CIRC Geneset
-SigGen <- read.csv("./Exploratory_Data/Genesets/Signature_Genesets.csv")
+SigGen <- read.csv("./Data/Genesets/Signature_Genesets.csv")
 CIRC_IG <- droplevels(subset(SigGen, Signature == "CIRC" | Signature == "Neeraj_IG"))
 CIRC_IG$HUGO.symbols <- as.factor(CIRC_IG$HUGO.symbols)
 

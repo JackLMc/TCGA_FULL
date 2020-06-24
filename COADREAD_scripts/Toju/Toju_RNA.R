@@ -246,7 +246,7 @@ Counts <- column_to_rownames(Counts, var = "hgnc_symbol")
 # 
 # x <- cpms[keep.exprs,]
 # dim(x)
-# CIRC_IG <- read.csv("./Exploratory_Data/Genesets/CIRC.csv")
+# CIRC_IG <- read.csv("./Data/Genesets/CIRC.csv")
 # CIRC_IG$SYMBOL <- as.factor(CIRC_IG$SYMBOL)
 # 
 # CIRC <- CIRC_IG[CIRC_IG$CIRC,]$SYMBOL
@@ -254,7 +254,7 @@ Counts <- column_to_rownames(Counts, var = "hgnc_symbol")
 # x[rownames(x) %in% CIRC, ] %>% dim()
 
 Genes_to_keep <- Counts[rowSums(Counts) != 0, ] %>% rownames() # Keep all genes which are expressed in at least 1 patient
-CIRC_IG <- read.csv("./Exploratory_Data/Genesets/CIRC.csv") # Check that the CIRC genes are in this data
+CIRC_IG <- read.csv("./Data/Genesets/CIRC.csv") # Check that the CIRC genes are in this data
 CIRC_IG$SYMBOL <- as.factor(CIRC_IG$SYMBOL)
 CIRC <- CIRC_IG[CIRC_IG$CIRC, ]$SYMBOL %>% droplevels() %>% levels()
 length(CIRC) == 28
@@ -333,7 +333,7 @@ library(reshape2)
 load("./R_Data/Toju/Counts_clean_T.RData")
 
 # Gain the genesets in the format I need
-CIRC_IG <- read.csv("./Exploratory_Data/Genesets/CIRC.csv") # Check that the CIRC genes are in this data
+CIRC_IG <- read.csv("./Data/Genesets/CIRC.csv") # Check that the CIRC genes are in this data
 CIRC_IG$SYMBOL <- as.factor(CIRC_IG$SYMBOL)
 
 Genes_of_CIRC <- CIRC_IG[CIRC_IG$CIRC, ]
@@ -430,7 +430,7 @@ library(reshape2)
 dcast(Merged2, Subtype ~., length)
 
 # Cell Types (immunome and Castro [Th17])
-CTGenesets <- read.csv("./Exploratory_Data/Genesets/Investigative_Genesets.csv", stringsAsFactors = T)
+CTGenesets <- read.csv("./Data/Genesets/Investigative_Genesets.csv", stringsAsFactors = T)
 Genesets <- deduplicate(CTGenesets)
 geneset_list <- list()
 for(i in levels(Genesets$Cell.population)){
@@ -483,7 +483,7 @@ for(i in levels(Enrich1$Parameter)){
 
 # # GO TERMS
 ## Reactive Oxygen Species
-ROS <- read.csv("./Exploratory_Data/Genesets/GO_term_summary_20190320_151206.csv", stringsAsFactors = T)
+ROS <- read.csv("./Data/Genesets/GO_term_summary_20190320_151206.csv", stringsAsFactors = T)
 ROS_list <- list()
 c <- 1
 for(i in levels(ROS$Annotated.Term)){
