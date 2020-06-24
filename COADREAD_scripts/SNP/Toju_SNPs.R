@@ -1,8 +1,25 @@
 # A script to reduce the matrix genotypes file to only those SNPs that are in Toju's analysis
 library(tidyverse)
 
+# Create Toju's SNPs - eQTL data taken from MuTHER study of 857 healthy female twins
+## Immune-related genes from Vogelsang et al, 2016 (CCR paper) 
+MuTHER <- read.delim("./Data/Toju_SNPs/Toju/MuTHER_top_cis_eQTL_per_probe_LCL.txt")
+Vogel <- read.csv("./Data/Toju_SNPs/Toju/Vogelsang_genes.csv")
+pre_sig_Genes <- MuTHER[MuTHER$Gene %in% Vogel$SYMBOL, ]
+# unique(pre_sig_Genes$Gene) %>% length() # Lose 112 genes - not in there
+Sig_Genes <- droplevels(subset(pre_sig_Genes, LCL_p <= 0.05)) # lose two to significance
+unique(Sig_Genes$Gene) %>% length()
+
+head(Sig_Genes)
+
+Info_need <- Sig_Genes[, c("SNP", "CHR", "SNP_Coor", "A1")]
+write.csv(x = Info_need, file = "./Data/Toju_SNPs/Toju/SNP_Toju.csv", row.names = F)
+
+
 ## Create the SNPs_to_call.txt file
-SNPs_to_read <- read.csv("./Data/SNPs/Toju/SNP_Toju.csv") # these are rs numbers... Need to do this on the annotation matrix...
+SNPs_to_read <- read.csv("./Data/Toju_SNPs/Toju/SNP_Toju.csv") # This has positions as well as IDs
+## Write a new filtering step to use the positions and the alternate alleles
+
 write.table("./Output/SNP/SNPs_to_call.txt", x = SNPs_to_read$SNP, quote = F, row.names = F)
 
 
