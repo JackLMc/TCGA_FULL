@@ -31,7 +31,7 @@ Ccqn <- Counts_cqn
 library(GSVA)
 
 ## Correlate with the CIRC
-SigGen <- read.csv("./Data/Genesets/Signature_Genesets.csv", stringsAsFactors = T)
+SigGen <- read.delim("./Data/Genesets/Signature_Genesets.txt", stringsAsFactors = T)
 
 SigGen_List <- list()
 c <- 1
@@ -75,7 +75,7 @@ for(i in levels(Enrich1$Parameter)){
 }
 
 # Cell Types (immunome and Castro [Th17])
-CTGenesets <- read.csv("./Data/Genesets/Investigative_Genesets.csv", stringsAsFactors = T)
+CTGenesets <- read.delim("./Data/Genesets/Investigative_Genesets.txt", stringsAsFactors = T)
 Genesets <- deduplicate(CTGenesets)
 geneset_list <- list()
 for(i in levels(Genesets$Cell.population)){
