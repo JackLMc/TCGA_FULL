@@ -20,22 +20,16 @@ prcomp.output <- prcomp(t(Counts_cqn), center = T, scale = T)
 # head(attempt)
 
 head(BioProc)
-
+# Create binary file of the genesets
 library(tidyverse)
 attempt <- BioProc %>% 
   enframe %>% 
   unnest %>% 
   count(name, value) %>% 
-  spread(value, n, fill = 0) %>% column_to_rownames(., var = "name") %>% as.matrix()
-
+  spread(value, n, fill = 0) %>% column_to_rownames(., var = "name") %>%
+  as.matrix()
 
 dimnames(attempt) <- NULL
-head(attempt)[, 1:10]
-
-str(attempt)
-str(gene.sets)
-
-dim(gene.sets)
 
 ## Execute SGSE using Fisher-transformed correlation coefficients as 
 ## the gene-level statistics, the standardized mean difference as the 
@@ -43,10 +37,6 @@ dim(gene.sets)
 ## two-sample t-test for the determination of statistical significance,
 ## all PCs with non-zero eigenvalues for spectral enrichment and 
 ## variance weights 
-
-
-## Error is the gene.set I've created
-### Binary file must use the same indices as the Counts_cqn file
 sgse.results = sgse(data = t(Counts_cqn), 
                     prcomp.output = prcomp.output, 
                     gene.sets = attempt,
@@ -64,12 +54,12 @@ sgse.results$pcgse$p.values[1:5,1]
 sgse.results$weights[1:5]   
 
 ## Display the SGSE p-values for the first 5 gene sets 
-sgse.results$sgse[1:5]   
+sgse.results$sgse[1:5]
 
 ## Execute SGSE again but using RMT scaled variance weights
-sgse.results = sgse(data=data, 
-                    prcomp.output=prcomp.output, 
-                    gene.sets=gene.sets,
+sgse.results = sgse(data = cqn_Counts, 
+                    prcomp.output = prcomp.output, 
+                    gene.sets = attempt,
                     gene.statistic="z", 
                     transformation="none",
                     gene.set.statistic="mean.diff",
@@ -85,9 +75,9 @@ sgse.results$sgse[1:5]
 
 ## Execute SGSE again using RMT scaled variance weights and  
 ## all RMT-significant PCs at alpha=.05
-sgse.results = sgse(data=data, 
+sgse.results = sgse(data=cqn_Counts, 
                     prcomp.output=prcomp.output, 
-                    gene.sets=gene.sets,
+                    gene.sets=attempt,
                     gene.statistic="z", 
                     transformation="none",
                     gene.set.statistic="mean.diff",
