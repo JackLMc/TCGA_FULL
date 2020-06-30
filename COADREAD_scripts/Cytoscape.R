@@ -25,6 +25,7 @@ load("./R_Data/Counts_clean.RData")
 # rm(list = setdiff(ls(), c("cqn_Counts"))) # Clean environment
 
 ##### START EDGER
+BiocManager::install("edgeR")
 library(edgeR)
 
 # Replenish "x"
@@ -68,7 +69,7 @@ lcpm <- cpm(x, log = T)
 # Normalising gene expression
 x <- calcNormFactors(x, method = "TMM")
 # x$samples$norm.factors
-x <- estimateCommonDisp(x)
+x <- estimateCommonDisp(x) ###########ERROR
 x <- estimateTagwiseDisp(x)
 
 # Differential gene expression
@@ -187,6 +188,11 @@ KEGG_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/c2.cp.kegg.v7.0.symbols.gmt")
 hallmark_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/h.all.v7.0.symbols.gmt")
 bio_gmt <- read.gmt("./Data/Genesets/GSEA/Symbol/c5.bp.v7.1.symbols.gmt")
 
+filtered_set <- read.delim("./Data/Genesets/Filtered_set_PCGSE.txt")$x %>% c()
+
+bio_filter <- bio_gmt[names(bio_gmt) %in% filtered_set]
+
+
 
 #### ENSURE 03/06/09 is MARCHF6 ###
 GoI <- read.csv("./Output/Genesets/Genesets_of_interest.csv", stringsAsFactors = F)
@@ -203,7 +209,7 @@ GoI1$Symbol[!('%in%'(GoI1$Symbol, rownames(v)))]
 # filter_gmt <- All_gmt[names(All_gmt) %in% names(GO_gmt)]
 
 ## Filter genesets for very small/very big sizes (reduces multiple comparison deficit) (2918 genesets)
-geneset_sizes <- unlist(lapply(bio_gmt, length))
+geneset_sizes <- unlist(lapply(bio_filter, length))
 geneset_sizes
 
 geneset_indices <- which(geneset_sizes>=50 & geneset_sizes<200)
@@ -223,7 +229,7 @@ hallmark_gmt1 <- hallmark_gmt[!'%in%'(names(hallmark_gmt), c("HALLMARK_TNFA_SIGN
 
 
 
-idx <- ids2indices(filtered_set, id = rownames(v))
+idx <- ids2indices(bio_filter, id = rownames(v))
 camera_results <- camera(v, idx, design, contrast = contr.matrix[, "MSI_HvsMSS_hiCIRC"])
 
 ## Use the camera_result table?
