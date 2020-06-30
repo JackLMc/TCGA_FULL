@@ -1,3 +1,4 @@
+# An R script to investigate whether the hiCIRC patients have an increased immunity (look at normal samples)
 library(UsefulFunctions)
 library(tidyverse)
 library(ggpubr)
@@ -46,7 +47,10 @@ multi_join <- function(list_of_loaded_data, join_func, ...){
 combined_df <- multi_join(lists1, full_join)
 
 temp_df <- combined_df %>% gather(key = "File.ID", value = "Count", -Gene)
-converter2 <- droplevels(subset(converter, Sample.Type == "Primary Tumor"))
+
+
+unique(converter$Sample.Type)
+converter2 <- droplevels(subset(converter, Sample.Type == "Solid Tissue Normal"))
 
 temp_df1 <- merge(converter2[, c("Patient.ID", "File.ID")], temp_df, by = "File.ID")
 
@@ -68,8 +72,8 @@ for(i in levels(temp_df1$Patient.ID)){
 multiple_seq <- droplevels(subset(testing, num != 1))$Patient.ID
 
 Countsprepare <- droplevels(temp_df1[!'%in%'(temp_df1$Gene, 
-                                            c("__alignment_not_unique", "__no_feature",
-                                              "__not_aligned", "__too_low_aQual", "__ambiguous")), ])
+                                             c("__alignment_not_unique", "__no_feature",
+                                               "__not_aligned", "__too_low_aQual", "__ambiguous")), ])
 
 multiples <- Countsprepare[Countsprepare$Patient.ID %in% multiple_seq, ] %>% droplevels()
 multiples$File.ID <- as.factor(multiples$File.ID)
@@ -126,17 +130,12 @@ library(biomaRt)
 ensembl_DB <- useEnsembl(biomart = "ensembl", dataset = "hsapiens_gene_ensembl")
 
 Gene_Map <- getBM(attributes = c("ensembl_gene_id", "hgnc_symbol"),
-      filters = "ensembl_gene_id", values = Counts_cleaned$Gene, ensembl_DB) # Only finds 56,543 of the 60,483 genes
+                  filters = "ensembl_gene_id", values = Counts_cleaned$Gene, ensembl_DB) # Only finds 56,543 of the 60,483 genes
 
 
 rm(list = setdiff(ls(), c("Gene_Map", "Counts_cleaned", "ensembl_DB"))) # Clean environment
-# save.image("./R_Data/Counts_clean1.RData")
 
-load("./R_Data/Counts_clean1.RData")
-library(UsefulFunctions)
-library(tidyverse)
-library(ggpubr)
-library(reshape2)
+
 
 colnames(Counts_cleaned)[colnames(Counts_cleaned) == "Gene"] <- "ensembl_gene_id"
 
@@ -249,5 +248,11 @@ rm(list = setdiff(ls(), c("Gene_Map3", "ensembl_DB", "Counts_cqn", "cqn_Counts",
 head(Counts_cqn) # These values are on a log2 scale.
 write.table("./Output/Patient_list.txt", x = as.factor(colnames(Counts_cqn)), row.names = F)
 save.image("./R_Data/Counts_clean.RData")
-   
+
+
+
+
+
+
+
 
