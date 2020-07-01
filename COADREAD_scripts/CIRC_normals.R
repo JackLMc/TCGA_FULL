@@ -47,11 +47,7 @@ multi_join <- function(list_of_loaded_data, join_func, ...){
 combined_df <- multi_join(lists1, full_join)
 
 temp_df <- combined_df %>% gather(key = "File.ID", value = "Count", -Gene)
-
-
-unique(converter$Sample.Type)
 converter2 <- droplevels(subset(converter, Sample.Type == "Solid Tissue Normal"))
-
 temp_df1 <- merge(converter2[, c("Patient.ID", "File.ID")], temp_df, by = "File.ID")
 
 # Check that each patient has one file id
@@ -191,11 +187,9 @@ Counts_above_0 <- Counts[rownames(Counts) %in% Genes_to_keep, ]
 # Counts_above_0[rownames(Counts_above_0) %in% CIRC, ] %>% dim()
 
 rm(list = setdiff(ls(), c("Gene_Map", "Counts_above_0", "ensembl_DB"))) # Clean environment
-save.image("./R_Data/Counts_clean2.RData")
 
 # Normalisation
 # BiocManager::install("cqn")
-load("./R_Data/Counts_clean2.RData")
 library(cqn)
 Gene_Map1 <- getBM(attributes = c("hgnc_symbol", "percentage_gene_gc_content", "start_position", "end_position"),
                    filters = "hgnc_symbol", values = rownames(Counts_above_0), ensembl_DB)
@@ -229,8 +223,9 @@ stopifnot(colnames(Counts_above_0) == names(libraries))
 
 # Normalisation
 cqn_Counts <- cqn(Counts_above_0, lengths = Gene_Map3$length, x = Gene_Map3$Average_percentage_gc_content,
-                  sizeFactors = libraries, verbose = T)
+                  sizeFactors = libraries, verbose = T) # Can safely ignore the warning (Boris)
 
+head(cqn_Counts)
 
 ## Look at systematic effects, n argument refers to the effect, 1 is always the covariate specified by the x argument above (gc content)
 ## whereas 2 is lengths
@@ -241,18 +236,77 @@ cqnplot(cqn_Counts, n = 2, xlab = "length", lty = 1, ylim = c(1,7))
 
 ## Normalised expression values
 Counts_cqn <- cqn_Counts$y + cqn_Counts$offset
-
 rm(list = setdiff(ls(), c("Gene_Map3", "ensembl_DB", "Counts_cqn", "cqn_Counts", "libraries"))) # Clean environment
-
+save.image("./R_Data/CIRC_Normals.RData")
+load("./R_Data/CIRC_Normals.RData")
 
 head(Counts_cqn) # These values are on a log2 scale.
-write.table("./Output/Patient_list.txt", x = as.factor(colnames(Counts_cqn)), row.names = F)
-save.image("./R_Data/Counts_clean.RData")
+write.table("./Output/Patient_list_norms.txt", x = as.factor(colnames(Counts_cqn)), row.names = F)
+
+
+pat_sub <- read.csv("./Output/Patient_Subtypes_09_03.csv")
+
+
+longCQN <- Counts_cqn %>% as.data.frame() %>% rownames_to_column(., var = "HUGO.symbols") %>%
+  gather(contains("TCGA"), key = "Patient.ID", value = "CQN")
+
+
+library(GSVA)
+
+
+SigGen <- read.delim("./Data/Genesets/Signature_Genesets.txt", stringsAsFactors = T)
+CIRC_IG <- droplevels(subset(SigGen, Signature == "CIRC"))
+CIRC_IG$HUGO.symbols <- as.factor(CIRC_IG$HUGO.symbols)
+
+# Label
+CIRC_genes <- droplevels(subset(CIRC_IG, Signature == "CIRC"))$HUGO.symbols %>%
+  levels() %>% list()
+names(CIRC_genes) <- "CIRC_Genes"
+
+# Calculate Enrichment of CIRC
+Enrichment_CIRC <- gsva(Counts_cqn, CIRC_genes) 
+Enrichment_CIRC1 <- Enrichment_CIRC %>% as.data.frame() %>%
+  rownames_to_column(., var = "Geneset") %>%
+  gather(contains("TCGA"), key = "Patient.ID", value = "Enrich") %>%
+  spread(., key = "Geneset", value = "Enrich") %>% 
+  merge(., pat_sub[, c("Patient.ID", "Subtype")], by = "Patient.ID")
 
 
 
 
+ggplot(Enrichment_CIRC1, aes(x = Subtype, y = CIRC_Genes)) +
+  geom_boxplot(alpha = 0.5, width = 0.2) +
+  geom_violin(aes(Subtype, fill = Subtype),
+              scale = "width", alpha = 0.8) +
+  scale_fill_manual(values = cbcols) +
+  labs(x = "MSI Status", y = "CIRC Enrichment Score") +
+  theme_bw() +
+  theme(axis.text = element_text(size = 16)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.direction = "horizontal", legend.position = "top") +
+  stat_compare_means(comparisons = my_comparisons,
+                     label = "p.signif", method = "wilcox.test")
+dev.off()
 
+wideCQN <- spread(longCQN, key = "HUGO.symbols", value = "CQN") %>% merge(., pat_sub[, c("Patient.ID", "Subtype")])
+
+
+ggplot(wideCQN, aes(x = Subtype, y = TLR4)) +
+  geom_boxplot(alpha = 0.5, width = 0.2) +
+  geom_violin(aes(Subtype, fill = Subtype),
+              scale = "width", alpha = 0.8) +
+  scale_fill_manual(values = cbcols) +
+  labs(x = "MSI Status", y = "CIRC Enrichment Score") +
+  theme_bw() +
+  theme(axis.text = element_text(size = 16)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(legend.direction = "horizontal", legend.position = "top") +
+  stat_compare_means(comparisons = my_comparisons,
+                     label = "p.signif", method = "wilcox.test")
+dev.off()
+
+library(reshape2)
+dcast(wideCQN, Subtype ~., length)
 
 
 
