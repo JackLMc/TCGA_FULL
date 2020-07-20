@@ -397,8 +397,8 @@ for(i in 1:length(genes_of_interest)){
 ## Bespoke genes
 head(LongCQN)
 
-LongCQN$Gene[grepl("CYBB", LongCQN$Gene)] # Check whether your gene exists in the dataset
-GOI <- droplevels(subset(LongCQN, Gene == "CD14")) 
+LongCQN$Gene[grepl("MR1", LongCQN$Gene)] # Check whether your gene exists in the dataset
+GOI <- droplevels(subset(LongCQN, Gene == "MR1")) 
 
 
 ggplot(GOI, aes(x = Subtype, y = CQN)) +

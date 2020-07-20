@@ -273,7 +273,7 @@ Enrichment_CIRC1 <- Enrichment_CIRC %>% as.data.frame() %>%
 
 
 
-
+pdf("./Figures/1_Redefinition/CIRC_normal_tissues.pdf")
 ggplot(Enrichment_CIRC1, aes(x = Subtype, y = CIRC_Genes)) +
   geom_boxplot(alpha = 0.5, width = 0.2) +
   geom_violin(aes(Subtype, fill = Subtype),

@@ -4,7 +4,7 @@ load("./R_Data/Counts_clean.RData")
 library(tidyverse)
 # install.packages(c("devtools", "curl"))
 library(devtools)
-install_github("ebecht/MCPcounter",ref="master", subdir="Source")
+install_github("ebecht/MCPcounter", ref = "master", subdir = "Source")
 
 library(MCPcounter)
 library(UsefulFunctions)
@@ -88,6 +88,17 @@ for(i in levels(MCP$Cell_Population)){
   ggplot2:: ggsave(filen, plot = temp_plot, device = "pdf",
                    path = "./Figures/Gene_Sets/Enrichment/MCPcounter/Bespoke",
                    height = 6, width = 6)}
+
+
+### MuSiC
+# install the MuSiC package
+devtools::install_github('xuranw/MuSiC')
+
+# load
+library(MuSiC)
+
+
+
 
 
 

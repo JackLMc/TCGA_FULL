@@ -375,9 +375,10 @@ Merged1$ClassII_IHC <- as.numeric(as.character(Merged1$ClassII_IHC))
 
 head(Merged1)
 
-ggplot(Merged1, aes(y = ClassII_IHC, x = CIRC_Genes))+
+pdf("./Figures/Toju/CIRC_vs_ClassIIRNA.pdf", height = 7, width = 8)
+ggplot(Merged1, aes(y = ClassII, x = CIRC_Genes))+
   geom_point(alpha = 0.8, size = 4, colour = "slategray") +
-  labs(x = "CIRC", y = "ClassII_IHC") +
+  labs(x = "CIRC", y = "ClassII_RNA") +
   theme_bw() +
   # geom_text(aes(x = -0.3, y = .75, label = lm_eqn(lm(CIRC_Genes ~ Enrichment, work))), parse = T) +
   # scale_color_manual(values = cbcols) +
@@ -385,7 +386,7 @@ ggplot(Merged1, aes(y = ClassII_IHC, x = CIRC_Genes))+
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
   theme(legend.position = "none") +
   stat_cor()
-
+dev.off()
 ## Get MSS-hiCIRC
 CIRC_cutoff <- 0.36
 Merged2 <- Merged1[!is.na(Merged1$MMR), ]
